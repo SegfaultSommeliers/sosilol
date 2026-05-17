@@ -57,6 +57,7 @@ func NewApp(
 	githubService := github.NewService(
 		cfg.GithubClientId,
 		cfg.GithubClientSecret,
+		dbPool,
 	)
 
 	e := echo.New()
