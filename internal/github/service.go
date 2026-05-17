@@ -12,6 +12,13 @@ import (
 	githuboauth "golang.org/x/oauth2/github"
 )
 
+type Profile struct {
+	ID        int64
+	Login     string
+	AvatarURL string
+	Pastes    []paste.Paste
+}
+
 type Service struct {
 	authConfig *oauth2.Config
 	dbPool     *pgxpool.Pool
@@ -47,7 +54,7 @@ func (s *Service) Authorize(
 func (s *Service) GetRawProfile(
 	ctx context.Context,
 	token string,
-) (map[string]any, error) {
+) (*Profile, error) {
 	client, err := gogithub.NewClient(gogithub.WithAuthToken(token))
 	if err != nil {
 		return nil, err
@@ -58,18 +65,18 @@ func (s *Service) GetRawProfile(
 		return nil, err
 	}
 
-	return map[string]any{
-		"id":         user.GetID(),
-		"login":      user.GetLogin(),
-		"avatar_url": user.GetAvatarURL(),
-		"pastes":     make([]paste.Paste, 0),
+	return &Profile{
+		ID:        user.GetID(),
+		Login:     user.GetLogin(),
+		AvatarURL: user.GetAvatarURL(),
+		Pastes:    make([]paste.Paste, 0),
 	}, nil
 }
 
 func (s *Service) GetProfile(
 	ctx context.Context,
 	token string,
-) (map[string]any, error) {
+) (*Profile, error) {
 	client, err := gogithub.NewClient(gogithub.WithAuthToken(token))
 	if err != nil {
 		return nil, err
@@ -94,10 +101,10 @@ func (s *Service) GetProfile(
 		}
 	}
 
-	return map[string]any{
-		"id":         user.GetID(),
-		"login":      user.GetLogin(),
-		"avatar_url": user.GetAvatarURL(),
-		"pastes":     pastes,
+	return &Profile{
+		ID:        user.GetID(),
+		Login:     user.GetLogin(),
+		AvatarURL: user.GetAvatarURL(),
+		Pastes:    pastes,
 	}, nil
 }

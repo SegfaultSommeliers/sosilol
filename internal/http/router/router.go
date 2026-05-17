@@ -28,4 +28,8 @@ func RegisterRoutes(
 	)
 	e.GET("/auth", githubHandler.Auth)
 	e.GET("/requestAuth", githubHandler.RequestAuth)
+	e.GET("/profile", github.NewProfileHandler(
+		githubService,
+		sessionStore,
+	))
 }

@@ -3,3 +3,4 @@
 
 .idea/
 internal/db/
+view/**/*_templ.go
