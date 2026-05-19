@@ -2,5 +2,7 @@
 !.env.example
 
 .idea/
+
+docs/
 internal/db/
 view/**/*_templ.go

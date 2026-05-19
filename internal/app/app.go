@@ -19,6 +19,13 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
+// App
+//
+// @title соси лол
+// @version v1
+// @description Лучшая паста на свете
+
+// @host sosi.lol
 type App struct {
 	Logger       *slog.Logger
 	Echo         *echo.Echo

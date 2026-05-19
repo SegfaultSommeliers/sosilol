@@ -21,6 +21,16 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
+// Save
+// @Summary      Сохранение новой пасты
+// @Description  Сохранение новой пасты. Если пользователь авторизован через GitHub — паста привязывается к аккаунту.
+// @Tags         Контроллер паст
+// @Accept       plain
+// @Produce      plain
+// @Param        text  path      string  true  "Текст пасты"
+// @Success      301   {string}  string  "Редирект на /view/{id}"
+// @Failure      500   {string}  string  "Внутренняя ошибка сервера"
+// @Router       /save/{text} [post]
 func (h *Handler) Save(c *echo.Context) error {
 	ctx := c.Request().Context()
 	text := c.Param("text")
@@ -49,6 +59,15 @@ func (h *Handler) Save(c *echo.Context) error {
 	return c.Redirect(http.StatusMovedPermanently, fmt.Sprintf("/view/%s", id))
 }
 
+// View
+// @Summary      Просмотр пасты
+// @Description  Возвращает HTML-страницу с содержимым пасты
+// @Tags         Контроллер паст
+// @Produce      html
+// @Param        id   path      string  true  "ID пасты"
+// @Success      200  {string}  string  "HTML-страница с пастой"
+// @Failure      301  {string}  string  "Редирект на / при отсутствии id или ошибке"
+// @Router       /view/{id} [get]
 func (h *Handler) View(c *echo.Context) error {
 	ctx := c.Request().Context()
 	id := c.Param("id")
@@ -67,6 +86,16 @@ func (h *Handler) View(c *echo.Context) error {
 	return apphttp.Render(c, http.StatusOK, page.Paste(code))
 }
 
+// Raw
+// @Summary      Получение пасты в сыром виде
+// @Description  Возвращает содержимое пасты в виде plain text
+// @Tags         Контроллер паст
+// @Produce      plain
+// @Param        id   path      string  true  "ID пасты"
+// @Success      200  {string}  string  "Паста в сыром виде"
+// @Failure      400  {string}  string  "id обязателен"
+// @Failure      500  {string}  string  "Внутренняя ошибка сервера"
+// @Router       /raw/{id} [get]
 func (h *Handler) Raw(c *echo.Context) error {
 	ctx := c.Request().Context()
 	id := c.Param("id")

@@ -12,6 +12,9 @@ import (
 	"github.com/SegfaultSommeliers/sosilol/view/page"
 	"github.com/boj/redistore/v2"
 	"github.com/labstack/echo/v5"
+	echoSwagger "github.com/swaggo/echo-swagger/v2"
+
+	_ "github.com/SegfaultSommeliers/sosilol/docs"
 )
 
 func RegisterRoutes(
@@ -26,6 +29,7 @@ func RegisterRoutes(
 	e.GET("/", func(c *echo.Context) error {
 		return apphttp.Render(c, http.StatusOK, page.Main())
 	})
+	e.GET("/v1/swagger-ui/*", echoSwagger.WrapHandlerV3)
 	e.StaticFS("/", echo.MustSubFS(embed.Static, "static"))
 
 	githubHandler := github.NewHandler(
