@@ -3,31 +3,24 @@ package github
 import (
 	"context"
 
+	"github.com/SegfaultSommeliers/sosilol"
 	"github.com/SegfaultSommeliers/sosilol/internal/db"
-	"github.com/SegfaultSommeliers/sosilol/internal/paste"
+	"github.com/SegfaultSommeliers/sosilol/internal/shared/model"
 	gogithub "github.com/google/go-github/v86/github"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/oauth2"
 	githuboauth "golang.org/x/oauth2/github"
 )
 
-type Profile struct {
-	ID        int64
-	Login     string
-	AvatarURL string
-	Pastes    []paste.Paste
-}
-
 type Service struct {
 	authConfig *oauth2.Config
-	dbPool     *pgxpool.Pool
+	queries    *db.Queries
 }
 
 func NewService(
 	clientId string,
 	clientSecret string,
-	dbPool *pgxpool.Pool,
+	queries *db.Queries,
 ) *Service {
 	return &Service{
 		authConfig: &oauth2.Config{
@@ -35,7 +28,7 @@ func NewService(
 			ClientSecret: clientSecret,
 			Endpoint:     githuboauth.Endpoint,
 		},
-		dbPool: dbPool,
+		queries: queries,
 	}
 }
 
@@ -45,7 +38,7 @@ func (s *Service) Authorize(
 ) (string, error) {
 	token, err := s.authConfig.Exchange(ctx, code)
 	if err != nil {
-		return "", err
+		return "", sosilol.ErrExchangeCodeFailed
 	}
 
 	return token.AccessToken, nil
@@ -54,54 +47,56 @@ func (s *Service) Authorize(
 func (s *Service) GetRawProfile(
 	ctx context.Context,
 	token string,
-) (*Profile, error) {
+) (*model.Profile, error) {
 	client, err := gogithub.NewClient(gogithub.WithAuthToken(token))
 	if err != nil {
-		return nil, err
+		return nil, sosilol.ErrGetGithubClientFailed
 	}
 
 	user, _, err := client.Users.Get(ctx, "")
 	if err != nil {
-		return nil, err
+		return nil, sosilol.ErrUserNotFound
 	}
 
-	return &Profile{
+	return &model.Profile{
 		ID:        user.GetID(),
 		Login:     user.GetLogin(),
 		AvatarURL: user.GetAvatarURL(),
-		Pastes:    make([]paste.Paste, 0),
+		Pastes:    make([]model.Paste, 0),
 	}, nil
 }
 
 func (s *Service) GetProfile(
 	ctx context.Context,
 	token string,
-) (*Profile, error) {
+) (*model.Profile, error) {
 	client, err := gogithub.NewClient(gogithub.WithAuthToken(token))
 	if err != nil {
-		return nil, err
+		return nil, sosilol.ErrGetGithubClientFailed
 	}
 
 	user, _, err := client.Users.Get(ctx, "")
 	if err != nil {
-		return nil, err
+		return nil, sosilol.ErrUserNotFound
 	}
 
-	q := db.New(s.dbPool)
-	dbPastes, err := q.GetPastesByAuthorID(ctx, pgtype.Int8{
+	dbPastes, err := s.queries.GetPastesByAuthorID(ctx, pgtype.Int8{
 		Int64: user.GetID(),
 		Valid: true,
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	pastes := make([]paste.Paste, len(dbPastes))
+	pastes := make([]model.Paste, len(dbPastes))
 	for i, dbPaste := range dbPastes {
-		pastes[i] = paste.Paste{
+		pastes[i] = model.Paste{
 			ID:   dbPaste.ID,
 			Code: dbPaste.Code,
 		}
 	}
 
-	return &Profile{
+	return &model.Profile{
 		ID:        user.GetID(),
 		Login:     user.GetLogin(),
 		AvatarURL: user.GetAvatarURL(),

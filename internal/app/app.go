@@ -6,12 +6,14 @@ import (
 	"log/slog"
 
 	"github.com/SegfaultSommeliers/sosilol/internal/config"
+	"github.com/SegfaultSommeliers/sosilol/internal/db"
 	"github.com/SegfaultSommeliers/sosilol/internal/github"
 	"github.com/SegfaultSommeliers/sosilol/internal/http"
 	"github.com/SegfaultSommeliers/sosilol/internal/http/middleware"
 	"github.com/SegfaultSommeliers/sosilol/internal/http/router"
 	"github.com/SegfaultSommeliers/sosilol/internal/http/validator"
 	"github.com/SegfaultSommeliers/sosilol/internal/logger"
+	"github.com/SegfaultSommeliers/sosilol/internal/paste"
 	"github.com/boj/redistore/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v5"
@@ -53,11 +55,18 @@ func NewApp(
 		sessionStore.Close()
 		return nil, err
 	}
+	queries := db.New(dbPool)
 
 	githubService := github.NewService(
 		cfg.GithubClientId,
 		cfg.GithubClientSecret,
-		dbPool,
+		queries,
+	)
+
+	pasteService := paste.NewService(
+		queries,
+
+		githubService,
 	)
 
 	e := echo.New()
@@ -71,6 +80,7 @@ func NewApp(
 		cfg,
 
 		githubService,
+		pasteService,
 	)
 
 	return &App{
