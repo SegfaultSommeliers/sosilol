@@ -1,0 +1,16 @@
+version: "2"
+run:
+  timeout: 5m
+
+linters:
+  default: none
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - revive
+    - gosec
+    - goconst
+    - bodyclose
