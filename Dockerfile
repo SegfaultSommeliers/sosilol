@@ -1,4 +1,4 @@
-FROM golang:1.26.3-alpine3.23 AS builder
+FROM docker.io/library/golang:1.26.3-alpine3.23 AS builder
 
 WORKDIR /build
 
@@ -8,13 +8,17 @@ RUN go mod download && go mod verify
 
 COPY . .
 
+RUN go tool templ generate
+RUN go tool sqlc generate
+RUN go tool swag init -g internal/app/app.go --output docs
+
 RUN CGO_ENABLED=0 GOOS=linux \
     go build -trimpath \
     -ldflags="-w -s" \
     -o /build/sosilol \
     ./cmd/sosilol
 
-FROM alpine:3.23
+FROM docker.io/library/alpine:3.23
 
 WORKDIR /app
 
