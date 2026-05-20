@@ -9,7 +9,6 @@ linters:
     - errcheck
     - staticcheck
     - unused
-    - gosimple
     - revive
     - gosec
     - goconst
