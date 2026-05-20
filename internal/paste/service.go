@@ -47,11 +47,16 @@ func (s *Service) Save(
 			return "", err
 		}
 
+		if err = s.queries.UpsertProfile(ctx, profile.ID); err != nil {
+			return "", err
+		}
+
 		err = s.queries.InsertPaste(ctx, db.InsertPasteParams{
 			ID:   generatedID,
 			Code: text,
 			AuthorID: pgtype.Int8{
 				Int64: profile.ID,
+				Valid: true,
 			},
 		})
 

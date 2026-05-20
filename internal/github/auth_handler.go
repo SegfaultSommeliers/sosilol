@@ -1,6 +1,8 @@
 package github
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 
@@ -48,9 +50,13 @@ func (h *Handler) Auth(c *echo.Context) error {
 		return err
 	}
 
-	if state != session.ID {
+	expectedState, ok := session.Values["oauth_state"].(string)
+	if !ok || expectedState == "" || state != expectedState {
 		return sosilol.BadRequest("Invalid state")
 	}
+
+	// Clear the nonce after use
+	delete(session.Values, "oauth_state")
 
 	accessToken, err := h.service.Authorize(ctx, code)
 	if err != nil {
@@ -64,7 +70,7 @@ func (h *Handler) Auth(c *echo.Context) error {
 		return err
 	}
 
-	return c.Redirect(http.StatusMovedPermanently, "/redirect")
+	return c.Redirect(http.StatusFound, "/redirect")
 }
 
 func (h *Handler) RequestAuth(c *echo.Context) error {
@@ -73,13 +79,25 @@ func (h *Handler) RequestAuth(c *echo.Context) error {
 		return err
 	}
 
+	// Generate a cryptographically random state nonce for CSRF protection
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return err
+	}
+	nonce := hex.EncodeToString(b)
+	session.Values["oauth_state"] = nonce
+
+	if err := session.Save(c.Request(), c.Response()); err != nil {
+		return err
+	}
+
 	return c.Redirect(
-		http.StatusMovedPermanently,
+		http.StatusFound,
 		fmt.Sprintf(
 			"https://github.com/login/oauth/authorize?client_id=%s&redirect_uri=%s&scope=user&state=%s",
 			h.githubClientId,
 			h.githubRedirectUri,
-			session.ID,
+			nonce,
 		),
 	)
 }

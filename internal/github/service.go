@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/SegfaultSommeliers/sosilol"
 	"github.com/SegfaultSommeliers/sosilol/internal/db"
@@ -38,7 +39,7 @@ func (s *Service) Authorize(
 ) (string, error) {
 	token, err := s.authConfig.Exchange(ctx, code)
 	if err != nil {
-		return "", sosilol.ErrExchangeCodeFailed
+		return "", fmt.Errorf("%w: %w", sosilol.ErrExchangeCodeFailed, err)
 	}
 
 	return token.AccessToken, nil
@@ -50,12 +51,12 @@ func (s *Service) GetRawProfile(
 ) (*model.Profile, error) {
 	client, err := gogithub.NewClient(gogithub.WithAuthToken(token))
 	if err != nil {
-		return nil, sosilol.ErrGetGithubClientFailed
+		return nil, fmt.Errorf("%w: %w", sosilol.ErrGetGithubClientFailed, err)
 	}
 
 	user, _, err := client.Users.Get(ctx, "")
 	if err != nil {
-		return nil, sosilol.ErrUserNotFound
+		return nil, fmt.Errorf("%w: %w", sosilol.ErrUserNotFound, err)
 	}
 
 	return &model.Profile{
@@ -72,12 +73,12 @@ func (s *Service) GetProfile(
 ) (*model.Profile, error) {
 	client, err := gogithub.NewClient(gogithub.WithAuthToken(token))
 	if err != nil {
-		return nil, sosilol.ErrGetGithubClientFailed
+		return nil, fmt.Errorf("%w: %w", sosilol.ErrGetGithubClientFailed, err)
 	}
 
 	user, _, err := client.Users.Get(ctx, "")
 	if err != nil {
-		return nil, sosilol.ErrUserNotFound
+		return nil, fmt.Errorf("%w: %w", sosilol.ErrUserNotFound, err)
 	}
 
 	dbPastes, err := s.queries.GetPastesByAuthorID(ctx, pgtype.Int8{

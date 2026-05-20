@@ -62,6 +62,12 @@ func NewApp(
 		sessionStore.Close()
 		return nil, err
 	}
+
+	if err = dbPool.Ping(ctx); err != nil {
+		dbPool.Close()
+		sessionStore.Close()
+		return nil, fmt.Errorf("database unreachable: %w", err)
+	}
 	queries := db.New(dbPool)
 
 	githubService := github.NewService(

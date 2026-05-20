@@ -15,8 +15,7 @@ import (
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Printf("error loading config: %v", err)
-		return
+		log.Fatalf("error loading config: %v", err)
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -24,8 +23,7 @@ func main() {
 
 	a, err := app.NewApp(ctx, cfg)
 	if err != nil {
-		log.Printf("error creating app: %v", err)
-		return
+		log.Fatalf("error creating app: %v", err)
 	}
 	defer func(a *app.App) {
 		err := a.Close()

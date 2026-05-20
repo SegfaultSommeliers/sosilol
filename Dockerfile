@@ -12,7 +12,7 @@ RUN CGO_ENABLED=0 GOOS=linux \
     go build -trimpath \
     -ldflags="-w -s" \
     -o /build/sosilol \
-    ./cmd/api
+    ./cmd/sosilol
 
 FROM alpine:3.23
 

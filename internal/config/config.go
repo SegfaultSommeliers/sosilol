@@ -10,7 +10,7 @@ import (
 type Config struct {
 	Environment string `env:"ENVIRONMENT"`
 
-	HttpAddress     string        `env:"HTTP_ADDRESS"`
+	HttpAddress     string        `env:"HTTP_ADDRESS,required"`
 	GracefulTimeout time.Duration `env:"GRACEFUL_TIMEOUT" envDefault:"10s"`
 
 	PostgresHost     string `env:"POSTGRES_HOST" envDefault:"localhost"`
@@ -21,11 +21,11 @@ type Config struct {
 
 	RedisHost     string `env:"REDIS_HOST" envDefault:"localhost"`
 	RedisPort     string `env:"REDIS_PORT" envDefault:"6379"`
-	SessionSecret string `env:"SESSION_SECRET"`
+	SessionSecret string `env:"SESSION_SECRET,required"`
 
-	GithubClientId     string `env:"GITHUB_CLIENT_ID"`
-	GithubClientSecret string `env:"GITHUB_SECRET"`
-	GithubRedirectUrl  string `env:"GITHUB_REDIRECT_URL"`
+	GithubClientId     string `env:"GITHUB_CLIENT_ID,required"`
+	GithubClientSecret string `env:"GITHUB_SECRET,required"`
+	GithubRedirectUrl  string `env:"GITHUB_REDIRECT_URL,required"`
 }
 
 func Load() (Config, error) {

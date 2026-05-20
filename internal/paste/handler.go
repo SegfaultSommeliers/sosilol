@@ -17,8 +17,8 @@ type Handler struct {
 	service *Service
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(sessionStore *redistore.RediStore, service *Service) *Handler {
+	return &Handler{sessionStore: sessionStore, service: service}
 }
 
 // Save
@@ -27,13 +27,13 @@ func NewHandler(service *Service) *Handler {
 // @Tags         Контроллер паст
 // @Accept       plain
 // @Produce      plain
-// @Param        text  path      string  true  "Текст пасты"
-// @Success      301   {string}  string  "Редирект на /view/{id}"
+// @Param        text  formData  string  true  "Текст пасты"
+// @Success      302   {string}  string  "Редирект на /view/{id}"
 // @Failure      500   {string}  string  "Внутренняя ошибка сервера"
-// @Router       /save/{text} [post]
+// @Router       /save [post]
 func (h *Handler) Save(c *echo.Context) error {
 	ctx := c.Request().Context()
-	text := c.Param("text")
+	text := c.FormValue("text")
 
 	session, err := h.sessionStore.Get(c.Request(), "github_oauth")
 	if err != nil {
@@ -47,7 +47,7 @@ func (h *Handler) Save(c *echo.Context) error {
 				return err
 			}
 
-			return c.Redirect(http.StatusMovedPermanently, fmt.Sprintf("/view/%s", id))
+			return c.Redirect(http.StatusFound, fmt.Sprintf("/view/%s", id))
 		}
 	}
 
@@ -56,7 +56,7 @@ func (h *Handler) Save(c *echo.Context) error {
 		return err
 	}
 
-	return c.Redirect(http.StatusMovedPermanently, fmt.Sprintf("/view/%s", id))
+	return c.Redirect(http.StatusFound, fmt.Sprintf("/view/%s", id))
 }
 
 // View
@@ -66,21 +66,18 @@ func (h *Handler) Save(c *echo.Context) error {
 // @Produce      html
 // @Param        id   path      string  true  "ID пасты"
 // @Success      200  {string}  string  "HTML-страница с пастой"
-// @Failure      301  {string}  string  "Редирект на / при отсутствии id или ошибке"
+// @Failure      302  {string}  string  "Редирект на / при отсутствии id или ошибке"
 // @Router       /view/{id} [get]
 func (h *Handler) View(c *echo.Context) error {
 	ctx := c.Request().Context()
 	id := c.Param("id")
 	if id == "" {
-		return c.Redirect(http.StatusMovedPermanently, "/")
+		return c.Redirect(http.StatusFound, "/")
 	}
 
 	code, err := h.service.LoadRaw(ctx, id)
 	if err != nil {
-		if err := c.Redirect(http.StatusMovedPermanently, "/"); err != nil {
-			return err
-		}
-		return err
+		return c.Redirect(http.StatusFound, "/")
 	}
 
 	return apphttp.Render(c, http.StatusOK, page.Paste(code))

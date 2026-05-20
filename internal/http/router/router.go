@@ -46,6 +46,7 @@ func RegisterRoutes(
 		sessionStore,
 	))
 	pasteHandler := paste.NewHandler(
+		sessionStore,
 		pasteService,
 	)
 	e.POST("/save", pasteHandler.Save)

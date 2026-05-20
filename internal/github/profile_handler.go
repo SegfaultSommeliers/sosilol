@@ -23,12 +23,12 @@ func NewProfileHandler(
 
 		accountType, ok := session.Values["account_type"].(string)
 		if !ok || accountType == "" {
-			return c.Redirect(http.StatusMovedPermanently, "/requestAuth")
+			return c.Redirect(http.StatusFound, "/requestAuth")
 		}
 
 		accessToken, ok := session.Values["access_token"].(string)
 		if !ok || accessToken == "" {
-			return c.Redirect(http.StatusMovedPermanently, "/requestAuth")
+			return c.Redirect(http.StatusFound, "/requestAuth")
 		}
 
 		profile, err := githubService.GetProfile(ctx, accessToken)
