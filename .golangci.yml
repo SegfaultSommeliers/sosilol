@@ -13,3 +13,10 @@ linters:
     - gosec
     - goconst
     - bodyclose
+  settings:
+    revive:
+      rules:
+        - name: comments-density
+          disabled: true
+        - name: package-comments
+          disabled: true
