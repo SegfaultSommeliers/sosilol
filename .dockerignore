@@ -1,0 +1,9 @@
+.github/
+.env*
+.git/
+.gitignore
+*.md
+LICENSE
+Dockerfile
+compose.yml
+.golangci.yml

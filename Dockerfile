@@ -4,7 +4,8 @@ WORKDIR /build
 
 COPY go.mod go.sum ./
 
-RUN go mod download && go mod verify
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download && go mod verify
 
 COPY . .
 
@@ -12,7 +13,9 @@ RUN go tool templ generate
 RUN go tool sqlc generate
 RUN go tool swag init -g internal/app/app.go --output docs
 
-RUN CGO_ENABLED=0 GOOS=linux \
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    CGO_ENABLED=0 GOOS=linux \
     go build -trimpath \
     -ldflags="-w -s" \
     -o /build/sosilol \
