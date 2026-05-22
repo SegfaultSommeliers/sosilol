@@ -7,6 +7,7 @@ import (
 	"github.com/SegfaultSommeliers/sosilol"
 	"github.com/SegfaultSommeliers/sosilol/internal/db"
 	"github.com/SegfaultSommeliers/sosilol/internal/github"
+	"github.com/SegfaultSommeliers/sosilol/internal/paste/cache"
 	"github.com/SegfaultSommeliers/sosilol/internal/shared/model"
 	"github.com/SegfaultSommeliers/sosilol/internal/shared/utils"
 	"github.com/jackc/pgx/v5"
@@ -17,17 +18,20 @@ type Service struct {
 	queries *db.Queries
 
 	githubService *github.Service
+	cacheService  *cache.Service
 }
 
 func NewService(
 	queries *db.Queries,
 
 	githubService *github.Service,
+	cacheService *cache.Service,
 ) *Service {
 	return &Service{
 		queries: queries,
 
 		githubService: githubService,
+		cacheService:  cacheService,
 	}
 }
 
@@ -78,18 +82,27 @@ func (s *Service) Save(
 }
 
 func (s *Service) GetPaste(ctx context.Context, id string) (*model.Paste, error) {
-	paste, err := s.queries.GetPaste(ctx, id)
+	code, err := s.cacheService.GetPaste(ctx, id)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, sosilol.ErrPasteNotFound
+		if !errors.Is(err, cache.ErrCacheMiss) {
+			return nil, err
 		}
 
-		return nil, err
+		paste, err := s.queries.GetPaste(ctx, id)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, sosilol.ErrPasteNotFound
+			}
+
+			return nil, err
+		}
+		code = paste.Code
+		_ = s.cacheService.SetPaste(ctx, id, code)
 	}
 
 	return &model.Paste{
-		ID:   paste.ID,
-		Code: paste.Code,
+		ID:   id,
+		Code: code,
 	}, nil
 }
 

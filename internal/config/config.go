@@ -19,9 +19,10 @@ type Config struct {
 	PostgresPassword string `env:"POSTGRES_PASSWORD" envDefault:"postgres"`
 	PostgresDatabase string `env:"POSTGRES_DATABASE" envDefault:"postgres"`
 
-	RedisHost     string `env:"REDIS_HOST" envDefault:"localhost"`
-	RedisPort     string `env:"REDIS_PORT" envDefault:"6379"`
-	SessionSecret string `env:"SESSION_SECRET,required"`
+	RedisHost     string        `env:"REDIS_HOST" envDefault:"localhost"`
+	RedisPort     string        `env:"REDIS_PORT" envDefault:"6379"`
+	PasteCacheTTL time.Duration `env:"PASTE_CACHE_TTL" envDefault:"1h"`
+	SessionSecret string        `env:"SESSION_SECRET,required"`
 
 	GithubClientId     string `env:"GITHUB_CLIENT_ID,required"`
 	GithubClientSecret string `env:"GITHUB_SECRET,required"`

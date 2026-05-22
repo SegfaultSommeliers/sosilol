@@ -14,6 +14,7 @@ import (
 	"github.com/SegfaultSommeliers/sosilol/internal/http/validator"
 	"github.com/SegfaultSommeliers/sosilol/internal/logger"
 	"github.com/SegfaultSommeliers/sosilol/internal/paste"
+	"github.com/SegfaultSommeliers/sosilol/internal/paste/cache"
 	"github.com/boj/redistore/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v5"
@@ -80,6 +81,10 @@ func NewApp(
 		queries,
 
 		githubService,
+		cache.NewService(
+			sessionStore.Pool,
+			cfg.PasteCacheTTL,
+		),
 	)
 
 	e := echo.New()
