@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/SegfaultSommeliers/sosilol"
 	apphttp "github.com/SegfaultSommeliers/sosilol/internal/http"
 	"github.com/SegfaultSommeliers/sosilol/view/page"
 	"github.com/boj/redistore/v2"
 	"github.com/labstack/echo/v5"
 )
+
+const maxPasteSize = 1 * 1024 * 1024
 
 type Handler struct {
 	sessionStore *redistore.RediStore
@@ -34,6 +35,10 @@ func NewHandler(sessionStore *redistore.RediStore, service *Service) *Handler {
 func (h *Handler) Save(c *echo.Context) error {
 	ctx := c.Request().Context()
 	text := c.FormValue("text")
+
+	if text == "" || len(text) > maxPasteSize {
+
+	}
 
 	session, err := h.sessionStore.Get(c.Request(), "github_oauth")
 	if err != nil {
@@ -97,7 +102,11 @@ func (h *Handler) Raw(c *echo.Context) error {
 	ctx := c.Request().Context()
 	id := c.Param("id")
 	if id == "" {
-		return sosilol.BadRequest("id required")
+		return &apphttp.AppError{
+			StatusCode: http.StatusBadRequest,
+			Code:       "bad_request",
+			Message:    "id is required",
+		}
 	}
 
 	code, err := h.service.LoadRaw(ctx, id)

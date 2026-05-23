@@ -10,9 +10,10 @@ import (
 
 func Register(e *echo.Echo, l *slog.Logger) {
 	e.Use(middleware.RequestID())
-	e.Use(middleware.Recover())
-	e.Use(middleware.Secure())
 	e.Use(logger.RequestLogger(logger.RequestLoggerConfig{
 		Logger: l,
 	}))
+	e.Use(middleware.Recover())
+	e.Use(middleware.Secure())
+	e.Use(middleware.BodyLimit(4 * 1024 * 1024))
 }

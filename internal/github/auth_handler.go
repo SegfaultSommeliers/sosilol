@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/SegfaultSommeliers/sosilol"
+	apphttp "github.com/SegfaultSommeliers/sosilol/internal/http"
 	"github.com/boj/redistore/v2"
 	"github.com/labstack/echo/v5"
 )
@@ -42,7 +42,11 @@ func (h *Handler) Auth(c *echo.Context) error {
 	state := c.QueryParam("state")
 
 	if code == "" || state == "" {
-		return sosilol.BadRequest("code and state are required")
+		return &apphttp.AppError{
+			StatusCode: http.StatusBadRequest,
+			Code:       "bad_request",
+			Message:    fmt.Sprintf("missing code or state"),
+		}
 	}
 
 	session, err := h.sessionStore.Get(c.Request(), "github_oauth")
@@ -52,7 +56,11 @@ func (h *Handler) Auth(c *echo.Context) error {
 
 	expectedState, ok := session.Values["oauth_state"].(string)
 	if !ok || expectedState == "" || state != expectedState {
-		return sosilol.BadRequest("Invalid state")
+		return &apphttp.AppError{
+			StatusCode: http.StatusUnauthorized,
+			Code:       "unauthorized",
+			Message:    fmt.Sprintf("state mismatch"),
+		}
 	}
 
 	// Clear the nonce after use

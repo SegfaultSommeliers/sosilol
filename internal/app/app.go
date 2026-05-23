@@ -79,6 +79,7 @@ func NewApp(
 
 	pasteService := paste.NewService(
 		queries,
+		l,
 
 		githubService,
 		cache.NewService(
@@ -111,10 +112,10 @@ func NewApp(
 
 func (app *App) Close() error {
 	err := app.SessionStore.Close()
+	app.DbPool.Close()
 	if err != nil {
 		return err
 	}
-	app.DbPool.Close()
 
 	return nil
 }

@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"context"
 	"log/slog"
 	"time"
 
@@ -16,6 +17,15 @@ type RequestLoggerConfig struct {
 var DefaultRequestLoggerConfig = RequestLoggerConfig{
 	Logger:  slog.Default(),
 	Skipper: middleware.DefaultSkipper,
+}
+
+type ctxLoggerKey struct{}
+
+func FromContext(ctx context.Context) *slog.Logger {
+	if l, ok := ctx.Value(ctxLoggerKey{}).(*slog.Logger); ok {
+		return l
+	}
+	return slog.Default()
 }
 
 func RequestLogger(config RequestLoggerConfig) echo.MiddlewareFunc {
@@ -39,6 +49,10 @@ func RequestLogger(config RequestLoggerConfig) echo.MiddlewareFunc {
 				slog.String("request_id", reqID),
 			)
 
+			req := c.Request()
+			ctx := context.WithValue(req.Context(), ctxLoggerKey{}, reqLogger)
+			c.SetRequest(req.WithContext(ctx))
+
 			err := next(c)
 
 			resp, unwrapErr := echo.UnwrapResponse(c.Response())
@@ -47,18 +61,30 @@ func RequestLogger(config RequestLoggerConfig) echo.MiddlewareFunc {
 				return err
 			}
 
-			status := resp.Status
 			latency := time.Since(start)
+			status := resp.Status
 
-			reqLogger.Info("http_request",
+			attrs := []any{
 				slog.String("method", c.Request().Method),
 				slog.String("path", c.Path()),
-				slog.String("uri", c.Request().RequestURI),
+				slog.String("uri", c.Request().URL.Path),
 				slog.Int("status", status),
 				slog.Duration("latency", latency),
 				slog.String("remote_ip", c.RealIP()),
 				slog.Int64("bytes_out", resp.Size),
-			)
+			}
+
+			if err != nil {
+				attrs = append(attrs, slog.String("error", err.Error()))
+			}
+
+			if status >= 500 {
+				reqLogger.Error("http_request_failed", attrs...)
+			} else if status >= 400 {
+				reqLogger.Warn("http_request_warn", attrs...)
+			} else {
+				reqLogger.Info("http_request", attrs...)
+			}
 
 			return err
 		}

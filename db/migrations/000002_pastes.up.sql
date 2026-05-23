@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS public.pastes (
-    id VARCHAR(255) NOT NULL,
+    id VARCHAR(7) NOT NULL,
     code TEXT NOT NULL DEFAULT '',
     author_id BIGINT,
     CONSTRAINT pastes_pkey PRIMARY KEY (id)
@@ -16,3 +16,8 @@ ALTER TABLE public.pastes
     FOREIGN KEY (author_id)
     REFERENCES public.profiles(id)
     ON DELETE SET NULL;
+
+ALTER TABLE public.pastes
+    ALTER COLUMN id TYPE CHAR(7) USING TRIM(id);
+
+ANALYZE public.pastes;

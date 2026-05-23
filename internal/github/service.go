@@ -2,15 +2,21 @@ package github
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 
-	"github.com/SegfaultSommeliers/sosilol"
 	"github.com/SegfaultSommeliers/sosilol/internal/db"
 	"github.com/SegfaultSommeliers/sosilol/internal/shared/model"
 	gogithub "github.com/google/go-github/v86/github"
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/oauth2"
 	githuboauth "golang.org/x/oauth2/github"
+)
+
+var (
+	ErrUnauthorized = errors.New("unauthorized")
+	ErrUserNotFound = errors.New("user not found")
 )
 
 type Service struct {
@@ -39,7 +45,7 @@ func (s *Service) Authorize(
 ) (string, error) {
 	token, err := s.authConfig.Exchange(ctx, code)
 	if err != nil {
-		return "", fmt.Errorf("%w: %w", sosilol.ErrExchangeCodeFailed, err)
+		return "", fmt.Errorf("failed to exchange code for token: %w", err)
 	}
 
 	return token.AccessToken, nil
@@ -51,12 +57,28 @@ func (s *Service) GetRawProfile(
 ) (*model.Profile, error) {
 	client, err := gogithub.NewClient(gogithub.WithAuthToken(token))
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", sosilol.ErrGetGithubClientFailed, err)
+		if errResponse, ok := errors.AsType[*gogithub.ErrorResponse](err); ok {
+			switch errResponse.Response.StatusCode {
+			case http.StatusUnauthorized:
+				return nil, ErrUnauthorized
+			}
+		}
+
+		return nil, fmt.Errorf("failed to create GitHub client: %w", err)
 	}
 
 	user, _, err := client.Users.Get(ctx, "")
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", sosilol.ErrUserNotFound, err)
+		if errResponse, ok := errors.AsType[*gogithub.ErrorResponse](err); ok {
+			switch errResponse.Response.StatusCode {
+			case http.StatusUnauthorized:
+				return nil, ErrUnauthorized
+			case http.StatusNotFound:
+				return nil, ErrUserNotFound
+			}
+		}
+
+		return nil, fmt.Errorf("failed to get user info from GitHub: %w", err)
 	}
 
 	return &model.Profile{
@@ -71,18 +93,13 @@ func (s *Service) GetProfile(
 	ctx context.Context,
 	token string,
 ) (*model.Profile, error) {
-	client, err := gogithub.NewClient(gogithub.WithAuthToken(token))
+	profile, err := s.GetRawProfile(ctx, token)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", sosilol.ErrGetGithubClientFailed, err)
-	}
-
-	user, _, err := client.Users.Get(ctx, "")
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", sosilol.ErrUserNotFound, err)
+		return nil, err
 	}
 
 	dbPastes, err := s.queries.GetPastesByAuthorID(ctx, pgtype.Int8{
-		Int64: user.GetID(),
+		Int64: profile.ID,
 		Valid: true,
 	})
 	if err != nil {
@@ -96,11 +113,7 @@ func (s *Service) GetProfile(
 			Code: dbPaste.Code,
 		}
 	}
+	profile.Pastes = pastes
 
-	return &model.Profile{
-		ID:        user.GetID(),
-		Login:     user.GetLogin(),
-		AvatarURL: user.GetAvatarURL(),
-		Pastes:    pastes,
-	}, nil
+	return profile, nil
 }
