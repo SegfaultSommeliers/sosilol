@@ -36,8 +36,20 @@ func (h *Handler) Save(c *echo.Context) error {
 	ctx := c.Request().Context()
 	text := c.FormValue("text")
 
-	if text == "" || len(text) > maxPasteSize {
+	if text == "" {
+		return &apphttp.AppError{
+			StatusCode: http.StatusBadRequest,
+			Code:       "Bad Request",
+			Message:    "Empty text",
+		}
+	}
 
+	if len(text) > maxPasteSize {
+		return &apphttp.AppError{
+			StatusCode: http.StatusBadRequest,
+			Code:       "bad_request",
+			Message:    "text too large",
+		}
 	}
 
 	session, err := h.sessionStore.Get(c.Request(), "github_oauth")

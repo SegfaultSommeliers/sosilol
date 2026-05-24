@@ -19,7 +19,10 @@ var (
 	ErrPasteNotFound = errors.New("paste not found")
 )
 
-const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+const (
+	alphabet   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	maxRetries = 5
+)
 
 type Service struct {
 	queries *db.Queries
@@ -50,11 +53,6 @@ func (s *Service) Save(
 	text string,
 	token string,
 ) (string, error) {
-	generatedID, err := generateID()
-	if err != nil {
-		return "", fmt.Errorf("failed to generate id: %w", err)
-	}
-
 	var authorID pgtype.Int8
 	if token != "" {
 		profile, err := s.githubService.GetRawProfile(ctx, token)
@@ -72,48 +70,64 @@ func (s *Service) Save(
 		}
 	}
 
-	err = s.queries.InsertPaste(ctx, db.InsertPasteParams{
-		ID:       generatedID,
-		Code:     text,
-		AuthorID: authorID,
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to insert paste: %w", err)
+	for i := 0; i < maxRetries; i++ {
+		generatedID, err := generateID()
+		if err != nil {
+			return "", fmt.Errorf("failed to generate id: %w", err)
+		}
+
+		rowsAffected, err := s.queries.InsertPaste(ctx, db.InsertPasteParams{
+			ID:       generatedID,
+			Code:     text,
+			AuthorID: authorID,
+		})
+		if err != nil {
+			return "", fmt.Errorf("failed to insert paste: %w", err)
+		}
+
+		if rowsAffected > 0 {
+			return generatedID, nil
+		}
 	}
 
-	return generatedID, nil
+	return "", fmt.Errorf("failed to generate unique id after %d attempts", maxRetries)
 }
 
 func (s *Service) GetPaste(ctx context.Context, id string) (*model.Paste, error) {
 	code, err := s.cacheService.GetPaste(ctx, id)
+	if err == nil {
+		return &model.Paste{
+			ID:   id,
+			Code: code,
+		}, nil
+	}
+
+	if !errors.Is(err, cache.ErrCacheMiss) {
+		s.logger.ErrorContext(
+			ctx,
+			"failed to get paste from cache",
+			"id", id,
+			"error", err,
+		)
+	}
+
+	paste, err := s.queries.GetPaste(ctx, id)
 	if err != nil {
-		if !errors.Is(err, cache.ErrCacheMiss) {
-			s.logger.ErrorContext(
-				ctx,
-				"failed to get paste from cache",
-				"id", id,
-				"error", err,
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrPasteNotFound
+		}
+
+		return nil, err
+	}
+	code = paste.Code
+	go func(bgCtx context.Context, pasteID, pasteCode string) {
+		if cacheErr := s.cacheService.SetPaste(bgCtx, pasteID, pasteCode); cacheErr != nil {
+			s.logger.ErrorContext(bgCtx, "failed to cache paste background",
+				"id", pasteID,
+				"error", cacheErr,
 			)
 		}
-
-		paste, err := s.queries.GetPaste(ctx, id)
-		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				return nil, ErrPasteNotFound
-			}
-
-			return nil, err
-		}
-		code = paste.Code
-		go func(bgCtx context.Context, pasteID, pasteCode string) {
-			if cacheErr := s.cacheService.SetPaste(bgCtx, pasteID, pasteCode); cacheErr != nil {
-				s.logger.ErrorContext(bgCtx, "failed to cache paste background",
-					"id", pasteID,
-					"error", cacheErr,
-				)
-			}
-		}(context.WithoutCancel(ctx), id, code)
-	}
+	}(context.WithoutCancel(ctx), id, code)
 
 	return &model.Paste{
 		ID:   id,
