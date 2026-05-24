@@ -52,6 +52,7 @@ func RequestLogger(config RequestLoggerConfig) echo.MiddlewareFunc {
 			req := c.Request()
 			ctx := context.WithValue(req.Context(), ctxLoggerKey{}, reqLogger)
 			c.SetRequest(req.WithContext(ctx))
+			c.SetLogger(reqLogger)
 
 			err := next(c)
 

@@ -6,20 +6,20 @@ import (
 
 	apphttp "github.com/SegfaultSommeliers/sosilol/internal/http"
 	"github.com/SegfaultSommeliers/sosilol/view/page"
-	"github.com/boj/redistore/v2"
+	"github.com/alexedwards/scs/v2"
 	"github.com/labstack/echo/v5"
 )
 
 const maxPasteSize = 1 * 1024 * 1024
 
 type Handler struct {
-	sessionStore *redistore.RediStore
+	sessionManager *scs.SessionManager
 
 	service *Service
 }
 
-func NewHandler(sessionStore *redistore.RediStore, service *Service) *Handler {
-	return &Handler{sessionStore: sessionStore, service: service}
+func NewHandler(sessionManager *scs.SessionManager, service *Service) *Handler {
+	return &Handler{sessionManager: sessionManager, service: service}
 }
 
 // Save
@@ -52,20 +52,16 @@ func (h *Handler) Save(c *echo.Context) error {
 		}
 	}
 
-	session, err := h.sessionStore.Get(c.Request(), "github_oauth")
-	if err != nil {
-		return err
-	}
+	accountType := h.sessionManager.GetString(ctx, "account_type")
+	accessToken := h.sessionManager.GetString(ctx, "access_token")
 
-	if accountType, ok := session.Values["account_type"].(string); ok {
-		if accessToken, ok := session.Values["access_token"].(string); accountType != "" && ok {
-			id, err := h.service.Save(ctx, text, accessToken)
-			if err != nil {
-				return err
-			}
-
-			return c.Redirect(http.StatusFound, fmt.Sprintf("/view/%s", id))
+	if accountType != "" && accessToken != "" {
+		id, err := h.service.Save(ctx, text, accessToken)
+		if err != nil {
+			return err
 		}
+
+		return c.Redirect(http.StatusFound, fmt.Sprintf("/view/%s", id))
 	}
 
 	id, err := h.service.Save(ctx, text, "")

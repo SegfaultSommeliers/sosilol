@@ -27,16 +27,25 @@ type Service struct {
 func NewService(
 	clientId string,
 	clientSecret string,
+	redirectURL string,
 	queries *db.Queries,
 ) *Service {
 	return &Service{
 		authConfig: &oauth2.Config{
 			ClientID:     clientId,
 			ClientSecret: clientSecret,
+			RedirectURL:  redirectURL,
 			Endpoint:     githuboauth.Endpoint,
+			Scopes: []string{
+				"read:user",
+			},
 		},
 		queries: queries,
 	}
+}
+
+func (s *Service) GetAuthURL(state string) string {
+	return s.authConfig.AuthCodeURL(state)
 }
 
 func (s *Service) Authorize(

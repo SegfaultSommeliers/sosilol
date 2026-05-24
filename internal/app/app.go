@@ -15,9 +15,11 @@ import (
 	"github.com/SegfaultSommeliers/sosilol/internal/logger"
 	"github.com/SegfaultSommeliers/sosilol/internal/paste"
 	"github.com/SegfaultSommeliers/sosilol/internal/paste/cache"
-	"github.com/boj/redistore/v2"
+	"github.com/alexedwards/scs/goredisstore"
+	"github.com/alexedwards/scs/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v5"
+	"github.com/redis/go-redis/v9"
 )
 
 // App
@@ -25,13 +27,12 @@ import (
 // @title соси лол
 // @version v1
 // @description Лучшая паста на свете
-
 // @host sosi.lol
 type App struct {
-	Logger       *slog.Logger
-	Echo         *echo.Echo
-	SessionStore *redistore.RediStore
-	DbPool       *pgxpool.Pool
+	Logger      *slog.Logger
+	Echo        *echo.Echo
+	RedisClient *redis.Client
+	DbPool      *pgxpool.Pool
 }
 
 func NewApp(
@@ -40,13 +41,11 @@ func NewApp(
 ) (*App, error) {
 	l := logger.New(cfg.Environment)
 
-	sessionStore, err := redistore.NewStore(
-		redistore.KeysFromStrings(cfg.SessionSecret),
-		redistore.WithAddress("tcp", cfg.RedisHost+":"+cfg.RedisPort),
-	)
-	if err != nil {
-		return nil, err
-	}
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: cfg.RedisHost + ":" + cfg.RedisPort,
+	})
+	sessionManager := scs.New()
+	sessionManager.Store = goredisstore.New(redisClient)
 
 	dbPool, err := pgxpool.New(
 		ctx,
@@ -60,13 +59,19 @@ func NewApp(
 		),
 	)
 	if err != nil {
-		sessionStore.Close()
+		err := redisClient.Close()
+		if err != nil {
+			return nil, err
+		}
 		return nil, err
 	}
 
 	if err = dbPool.Ping(ctx); err != nil {
+		err := redisClient.Close()
+		if err != nil {
+			return nil, err
+		}
 		dbPool.Close()
-		sessionStore.Close()
 		return nil, fmt.Errorf("database unreachable: %w", err)
 	}
 	queries := db.New(dbPool)
@@ -74,6 +79,7 @@ func NewApp(
 	githubService := github.NewService(
 		cfg.GithubClientId,
 		cfg.GithubClientSecret,
+		cfg.GithubRedirectUrl,
 		queries,
 	)
 
@@ -83,7 +89,7 @@ func NewApp(
 
 		githubService,
 		cache.NewService(
-			sessionStore.Pool,
+			redisClient,
 			cfg.PasteCacheTTL,
 		),
 	)
@@ -92,26 +98,25 @@ func NewApp(
 	e.Validator = validator.NewCustomValidator()
 	e.HTTPErrorHandler = http.CustomErrorHandler
 
-	middleware.Register(e, l)
+	middleware.Register(e, l, sessionManager)
 	router.RegisterRoutes(
 		e,
-		sessionStore,
-		cfg,
+		sessionManager,
 
 		githubService,
 		pasteService,
 	)
 
 	return &App{
-		Logger:       l,
-		Echo:         e,
-		SessionStore: sessionStore,
-		DbPool:       dbPool,
+		Logger:      l,
+		Echo:        e,
+		RedisClient: redisClient,
+		DbPool:      dbPool,
 	}, nil
 }
 
 func (app *App) Close() error {
-	err := app.SessionStore.Close()
+	err := app.RedisClient.Close()
 	app.DbPool.Close()
 	if err != nil {
 		return err

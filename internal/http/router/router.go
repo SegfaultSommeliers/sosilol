@@ -3,14 +3,15 @@ package router
 import (
 	"net/http"
 
-	"github.com/SegfaultSommeliers/sosilol/internal/config"
 	"github.com/SegfaultSommeliers/sosilol/internal/embed"
 	"github.com/SegfaultSommeliers/sosilol/internal/github"
+	"github.com/SegfaultSommeliers/sosilol/internal/github/auth"
+	"github.com/SegfaultSommeliers/sosilol/internal/github/profile"
 	"github.com/SegfaultSommeliers/sosilol/internal/health"
 	apphttp "github.com/SegfaultSommeliers/sosilol/internal/http"
 	"github.com/SegfaultSommeliers/sosilol/internal/paste"
 	"github.com/SegfaultSommeliers/sosilol/view/page"
-	"github.com/boj/redistore/v2"
+	"github.com/alexedwards/scs/v2"
 	"github.com/labstack/echo/v5"
 	echoSwagger "github.com/swaggo/echo-swagger/v2"
 
@@ -19,8 +20,7 @@ import (
 
 func RegisterRoutes(
 	e *echo.Echo,
-	sessionStore *redistore.RediStore,
-	cfg config.Config,
+	sessionManager *scs.SessionManager,
 
 	githubService *github.Service,
 	pasteService *paste.Service,
@@ -32,21 +32,20 @@ func RegisterRoutes(
 	e.GET("/v1/swagger-ui/*", echoSwagger.WrapHandlerV3)
 	e.StaticFS("/", echo.MustSubFS(embed.Static, "static"))
 
-	githubHandler := github.NewHandler(
-		sessionStore,
-		cfg.GithubClientId,
-		cfg.GithubRedirectUrl,
-
+	authHandler := auth.NewHandler(
 		githubService,
+		sessionManager,
 	)
-	e.GET("/auth", githubHandler.Auth)
-	e.GET("/requestAuth", githubHandler.RequestAuth)
-	e.GET("/profile", github.NewProfileHandler(
+
+	e.GET("/auth/request", authHandler.RequestAuth)
+	e.GET("/auth/redirect", authHandler.RedirectAuth)
+
+	e.GET("/profile", profile.NewHandler(
 		githubService,
-		sessionStore,
+		sessionManager,
 	))
 	pasteHandler := paste.NewHandler(
-		sessionStore,
+		sessionManager,
 		pasteService,
 	)
 	e.POST("/save", pasteHandler.Save)

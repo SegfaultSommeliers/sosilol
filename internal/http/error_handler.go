@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/SegfaultSommeliers/sosilol/internal/http/validator"
-	"github.com/SegfaultSommeliers/sosilol/internal/logger"
 	"github.com/labstack/echo/v5"
 )
 
@@ -41,8 +40,7 @@ func CustomErrorHandler(
 	c *echo.Context,
 	err error,
 ) {
-	ctx := c.Request().Context()
-	log := logger.FromContext(ctx)
+	log := c.Logger()
 
 	resp, uErr := echo.UnwrapResponse(c.Response())
 	if uErr != nil {

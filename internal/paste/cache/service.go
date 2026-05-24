@@ -6,19 +6,19 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gomodule/redigo/redis"
+	"github.com/redis/go-redis/v9"
 )
 
 var ErrCacheMiss = errors.New("cache miss")
 
 type Service struct {
-	cache    *redis.Pool
+	client   *redis.Client
 	cacheTTL time.Duration
 }
 
-func NewService(cache *redis.Pool, cacheTTL time.Duration) *Service {
+func NewService(client *redis.Client, cacheTTL time.Duration) *Service {
 	return &Service{
-		cache:    cache,
+		client:   client,
 		cacheTTL: cacheTTL,
 	}
 }
@@ -28,20 +28,14 @@ func pasteKey(id string) string {
 }
 
 func (s *Service) GetPaste(ctx context.Context, id string) (string, error) {
-	if s.cache == nil {
+	if s.client == nil {
 		return "", errors.New("cache not initialized")
 	}
 
-	conn, err := s.cache.GetContext(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to get connection from cache: %w", err)
-	}
-	defer conn.Close()
-
 	key := pasteKey(id)
-	val, err := redis.String(redis.DoContext(conn, ctx, "GET", key))
+	val, err := s.client.Get(ctx, key).Result()
 	if err != nil {
-		if errors.Is(err, redis.ErrNil) {
+		if errors.Is(err, redis.Nil) {
 			return "", ErrCacheMiss
 		}
 
@@ -56,24 +50,12 @@ func (s *Service) SetPaste(
 	id string,
 	text string,
 ) error {
-	if s.cache == nil {
+	if s.client == nil {
 		return errors.New("cache not initialized")
 	}
 
-	conn, err := s.cache.GetContext(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get connection from cache: %w", err)
-	}
-	defer conn.Close()
-
 	key := pasteKey(id)
-	ttlSec := int64(s.cacheTTL.Seconds())
-	if ttlSec > 0 {
-		_, err = redis.DoContext(conn, ctx, "SET", key, text, "EX", ttlSec)
-	} else {
-		_, err = redis.DoContext(conn, ctx, "SET", key, text)
-	}
-	if err != nil {
+	if err := s.client.Set(ctx, key, text, s.cacheTTL).Err(); err != nil {
 		return fmt.Errorf("failed to set paste: %w", err)
 	}
 
