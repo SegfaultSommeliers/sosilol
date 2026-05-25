@@ -1,0 +1,12 @@
+/* Fonts */
+@import "@fontsource/montserrat/400.css";
+@import "material-icons/iconfont/filled.css";
+
+/* UI Framework */
+@import "materialize-css/dist/css/materialize.css";
+
+/* Syntax highlighting */
+@import "highlight.js/styles/atom-one-dark.css";
+
+/* Icons */
+@import "@fortawesome/fontawesome-free/css/all.css";

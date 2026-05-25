@@ -1,0 +1,15 @@
+{
+  "scripts": {
+    "build": "bun build src/main.js --outdir ../internal/embed/static/dist --minify && bun build src/main.css --outdir ../internal/embed/static/dist --asset-naming '[name]-[hash].[ext]' --minify",
+    "dev": "bun build src/main.js --outdir ../internal/embed/static/dist --watch & bun build src/main.css --outdir ../internal/embed/static/dist --asset-naming '[name]-[hash].[ext]' --watch"
+  },
+  "dependencies": {
+    "@fontsource/montserrat": "^5.2.8",
+    "@fortawesome/fontawesome-free": "^7.2.0",
+    "alpinejs": "^3.15.12",
+    "highlight.js": "^11.11.1",
+    "htmx.org": "^2.0.10",
+    "material-icons": "^1.13.14",
+    "materialize-css": "^1.0.0"
+  }
+}

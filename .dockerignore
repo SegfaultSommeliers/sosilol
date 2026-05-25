@@ -1,5 +1,9 @@
-.github/
 .env*
+
+.idea/
+node_modules/
+
+.github/
 .git/
 .gitignore
 *.md
@@ -7,3 +11,8 @@ LICENSE
 Dockerfile
 compose.yml
 .golangci.yml
+
+docs/
+internal/embed/static/dist/
+internal/db/
+view/**/*_templ.go

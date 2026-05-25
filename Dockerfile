@@ -1,3 +1,16 @@
+FROM docker.io/oven/bun:1-alpine AS frontend-builder
+
+WORKDIR /frontend-build
+
+COPY frontend/package.json frontend/bun.lock ./
+
+RUN bun install --frozen-lockfile
+
+COPY frontend/ ./
+
+RUN bun build src/main.js --outdir /dist --minify && \
+    bun build src/main.css --outdir /dist --asset-naming '[name]-[hash].[ext]' --minify
+
 FROM docker.io/library/golang:1.26.3-alpine3.23 AS builder
 
 WORKDIR /build
@@ -8,6 +21,8 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download && go mod verify
 
 COPY . .
+
+COPY --from=frontend-builder /dist/ ./internal/embed/static/dist/
 
 RUN go tool templ generate
 RUN go tool sqlc generate

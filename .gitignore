@@ -2,7 +2,9 @@
 !.env.example
 
 .idea/
+node_modules/
 
 docs/
+internal/embed/static/dist/
 internal/db/
 view/**/*_templ.go

@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/SegfaultSommeliers/sosilol/internal/github"
 	apphttp "github.com/SegfaultSommeliers/sosilol/internal/http"
@@ -32,7 +33,9 @@ func (h *Handler) RequestAuth(c *echo.Context) error {
 	h.sessionManager.Put(c.Request().Context(), "oauth_state", nonce)
 
 	redirectTo := c.QueryParam("redirect")
-	if redirectTo == "" {
+	if !strings.HasPrefix(redirectTo, "/") ||
+		strings.HasPrefix(redirectTo, "//") ||
+		strings.HasPrefix(redirectTo, "\\\\") {
 		redirectTo = "/profile"
 	}
 
