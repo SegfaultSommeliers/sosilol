@@ -23,12 +23,10 @@ templ Main() {
                             history.pushState(null, '', '/view/' + id);
                             await navigator.clipboard.writeText(window.location.href).catch(() => {});
                             const detected = hljs.highlightAuto(this.text).value;
-                            document.querySelector('.editor').remove();
-                            document.querySelector('.save-btn').remove();
                             const div = document.createElement('div');
                             div.className = 'code-view default-section';
                             div.innerHTML = detected;
-                            document.body.appendChild(div);
+                            this.$el.replaceWith(div);
                         }
                     } finally {
                         this.saving = false;

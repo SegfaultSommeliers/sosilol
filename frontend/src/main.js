@@ -3,6 +3,8 @@ import hljs from "highlight.js";
 import Alpine from "alpinejs";
 import "htmx.org";
 
+window.hljs = hljs;
+
 // Syntax highlighting — run after DOM is ready
 hljs.highlightAll();
 
