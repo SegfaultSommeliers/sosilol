@@ -4,10 +4,16 @@ import "github.com/SegfaultSommeliers/sosilol/view/layout"
 
 templ Paste(Code string) {
     @layout.BaseLayout() {
-        <div class="default-section code-view">{ Code }</div>
+        <div class="default-section code-view">
+            <pre><code id="code-block">{ Code }</code></pre>
+        </div>
         <script>
-            const codeview = document.querySelector(".code-view");
-            codeview.innerHTML = hljs.highlightAuto(codeview.innerText).value
+            document.addEventListener("DOMContentLoaded", () => {
+                const codeBlock = document.getElementById("code-block");
+                if (codeBlock && typeof hljs !== 'undefined') {
+                    hljs.highlightElement(codeBlock);
+                }
+            });
         </script>
     }
 }

@@ -21,8 +21,9 @@ type Config struct {
 
 	RedisHost     string        `env:"REDIS_HOST" envDefault:"localhost"`
 	RedisPort     string        `env:"REDIS_PORT" envDefault:"6379"`
+	RedisPassword string        `env:"REDIS_PASSWORD" envDefault:""`
+	RedisTLS      bool          `env:"REDIS_TLS" envDefault:"false"`
 	PasteCacheTTL time.Duration `env:"PASTE_CACHE_TTL" envDefault:"1h"`
-	SessionSecret string        `env:"SESSION_SECRET,required"`
 
 	GithubClientId     string `env:"GITHUB_CLIENT_ID,required"`
 	GithubClientSecret string `env:"GITHUB_SECRET,required"`

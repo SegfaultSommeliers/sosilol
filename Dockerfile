@@ -4,7 +4,8 @@ WORKDIR /frontend-build
 
 COPY frontend/package.json frontend/bun.lock ./
 
-RUN bun install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
 
 COPY frontend/ ./
 
@@ -24,9 +25,9 @@ COPY . .
 
 COPY --from=frontend-builder /dist/ ./internal/embed/static/dist/
 
-RUN go tool templ generate
-RUN go tool sqlc generate
-RUN go tool swag init -g internal/app/app.go --output docs
+RUN go tool templ generate && \
+    go tool sqlc generate && \
+    go tool swag init -g internal/app/app.go --output docs
 
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/SegfaultSommeliers/sosilol/internal/db"
 	"github.com/SegfaultSommeliers/sosilol/internal/github"
@@ -120,14 +121,17 @@ func (s *Service) GetPaste(ctx context.Context, id string) (*model.Paste, error)
 		return nil, err
 	}
 	code = paste.Code
-	go func(bgCtx context.Context, pasteID, pasteCode string) {
-		if cacheErr := s.cacheService.SetPaste(bgCtx, pasteID, pasteCode); cacheErr != nil {
-			s.logger.ErrorContext(bgCtx, "failed to cache paste background",
-				"id", pasteID,
+	go func(id, code string) {
+		cacheCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 200*time.Millisecond)
+		defer cancel()
+
+		if cacheErr := s.cacheService.SetPaste(cacheCtx, id, code); cacheErr != nil {
+			s.logger.ErrorContext(cacheCtx, "failed to cache paste background",
+				"id", id,
 				"error", cacheErr,
 			)
 		}
-	}(context.WithoutCancel(ctx), id, code)
+	}(id, code)
 
 	return &model.Paste{
 		ID:   id,

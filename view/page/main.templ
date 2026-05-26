@@ -20,13 +20,10 @@ templ Main() {
                         });
                         const id = resp.url.split('/view/')[1];
                         if (id) {
-                            history.pushState(null, '', '/view/' + id);
-                            await navigator.clipboard.writeText(window.location.href).catch(() => {});
-                            const detected = hljs.highlightAuto(this.text).value;
-                            const div = document.createElement('div');
-                            div.className = 'code-view default-section';
-                            div.innerHTML = detected;
-                            this.$el.replaceWith(div);
+                            const newUrl = window.location.origin + '/view/' + id;
+                            await navigator.clipboard.writeText(newUrl).catch(() => {});
+
+                            window.location.href = '/view/' + id;
                         }
                     } finally {
                         this.saving = false;

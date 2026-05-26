@@ -2,13 +2,17 @@ package app
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
+	"net"
+	"net/http"
+	"time"
 
 	"github.com/SegfaultSommeliers/sosilol/internal/config"
 	"github.com/SegfaultSommeliers/sosilol/internal/db"
 	"github.com/SegfaultSommeliers/sosilol/internal/github"
-	"github.com/SegfaultSommeliers/sosilol/internal/http"
+	apphttp "github.com/SegfaultSommeliers/sosilol/internal/http"
 	"github.com/SegfaultSommeliers/sosilol/internal/http/middleware"
 	"github.com/SegfaultSommeliers/sosilol/internal/http/router"
 	"github.com/SegfaultSommeliers/sosilol/internal/http/validator"
@@ -41,11 +45,29 @@ func NewApp(
 ) (*App, error) {
 	l := logger.New(cfg.Environment)
 
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: cfg.RedisHost + ":" + cfg.RedisPort,
-	})
+	redisOpts := &redis.Options{
+		Addr: net.JoinHostPort(cfg.RedisHost, cfg.RedisPort),
+	}
+	if cfg.RedisTLS {
+		redisOpts.TLSConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
+	}
+	if cfg.RedisPassword != "" {
+		redisOpts.Password = cfg.RedisPassword
+	}
+	redisClient := redis.NewClient(redisOpts)
 	sessionManager := scs.New()
 	sessionManager.Store = goredisstore.New(redisClient)
+	sessionManager.HashTokenInStore = true
+	sessionManager.IdleTimeout = 30 * time.Minute
+	sessionManager.Lifetime = 24 * time.Hour
+	sessionManager.Cookie.Name = "sosilol_session"
+	sessionManager.Cookie.Path = "/"
+	sessionManager.Cookie.HttpOnly = true
+	sessionManager.Cookie.SameSite = http.SameSiteLaxMode
+	sessionManager.Cookie.Secure = cfg.Environment != "dev"
+	sessionManager.Cookie.Persist = true
 
 	dbPool, err := pgxpool.New(
 		ctx,
@@ -96,9 +118,9 @@ func NewApp(
 
 	e := echo.New()
 	e.Validator = validator.NewCustomValidator()
-	e.HTTPErrorHandler = http.CustomErrorHandler
+	e.HTTPErrorHandler = apphttp.CustomErrorHandler
 
-	middleware.Register(e, l, sessionManager)
+	middleware.Register(e, l, cfg, sessionManager)
 	router.RegisterRoutes(
 		e,
 		sessionManager,

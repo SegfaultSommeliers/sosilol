@@ -2,7 +2,6 @@ package auth
 
 import (
 	"crypto/rand"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -57,7 +56,7 @@ func (h *Handler) RedirectAuth(c *echo.Context) error {
 		return &apphttp.AppError{
 			StatusCode: http.StatusBadRequest,
 			Code:       "bad_request",
-			Message:    fmt.Sprintf("missing code or state"),
+			Message:    "missing code or state",
 		}
 	}
 
@@ -66,7 +65,7 @@ func (h *Handler) RedirectAuth(c *echo.Context) error {
 		return &apphttp.AppError{
 			StatusCode: http.StatusUnauthorized,
 			Code:       "unauthorized",
-			Message:    fmt.Sprintf("state mismatch"),
+			Message:    "state mismatch",
 		}
 	}
 

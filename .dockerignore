@@ -8,6 +8,7 @@ node_modules/
 .gitignore
 *.md
 LICENSE
+Makefile
 Dockerfile
 compose.yml
 .golangci.yml
