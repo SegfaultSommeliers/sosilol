@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,28 +11,30 @@ import (
 
 	"github.com/SegfaultSommeliers/sosilol/internal/app"
 	"github.com/SegfaultSommeliers/sosilol/internal/config"
+	"github.com/SegfaultSommeliers/sosilol/internal/logger"
 	"github.com/gofiber/fiber/v3"
 )
 
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("error loading config: %v", err)
+		slog.Error("error loading config", "error", err)
+		os.Exit(1)
 	}
+
+	l := logger.New(cfg.Environment)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	a, err := app.NewApp(ctx, cfg)
+	a, err := app.NewApp(ctx, cfg, l)
 	if err != nil {
-		log.Fatalf("error creating app: %v", err)
-		return
+		l.Error("error creating app", "error", err)
+		os.Exit(1)
 	}
 	defer func(a *app.App) {
-		err := a.Close()
-		if err != nil {
-			log.Printf("error closing app: %v", err)
-			return
+		if err := a.Close(); err != nil {
+			l.Error("error closing app", "error", err)
 		}
 	}(a)
 
@@ -40,6 +42,6 @@ func main() {
 		GracefulContext: ctx,
 		ShutdownTimeout: cfg.GracefulTimeout,
 	}); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		a.Logger.Error("failed to start app", "error", err)
+		l.Error("failed to start app", "error", err)
 	}
 }

@@ -9,16 +9,15 @@ templ Main() {
             @keydown.ctrl.s.window.prevent="save()"
         >
             <button
-                class="btn-floating btn-large waves-effect waves-light red save-btn"
-                style="position: fixed; bottom: 0; right: 0; margin: 15px;"
+                class="btn-floating btn-large waves-effect waves-light red save-btn save-fab"
                 :disabled="saving"
                 @click="save()"
             >
-                <i class="fas fa-paste" style="font-size: 24px;"></i>
+                <i class="fas fa-paste save-fab-icon"></i>
             </button>
             <div class="editor">
                 <textarea
-                    style="width: 100%;"
+                    class="editor-textarea"
                     placeholder="Пиши сюда"
                     x-model="text"
                     @keydown.tab.prevent="handleTab($event)"

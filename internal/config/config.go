@@ -1,6 +1,8 @@
 package config
 
 import (
+	"errors"
+	"net/url"
 	"time"
 
 	"github.com/caarlos0/env/v11"
@@ -27,6 +29,7 @@ type Config struct {
 	PostgresUsername string `env:"POSTGRES_USERNAME" envDefault:"postgres"`
 	PostgresPassword string `env:"POSTGRES_PASSWORD" envDefault:"postgres"`
 	PostgresDatabase string `env:"POSTGRES_DATABASE" envDefault:"postgres"`
+	PostgresTLS      bool   `env:"POSTGRES_TLS" envDefault:"false"`
 
 	RedisHost     string        `env:"REDIS_HOST" envDefault:"localhost"`
 	RedisPort     string        `env:"REDIS_PORT" envDefault:"6379"`
@@ -44,5 +47,17 @@ type Config struct {
 func Load() (Config, error) {
 	_ = godotenv.Load()
 
-	return env.ParseAs[Config]()
+	cfg, err := env.ParseAs[Config]()
+	if err != nil {
+		return cfg, err
+	}
+
+	if !cfg.Environment.IsDev() {
+		u, parseErr := url.Parse(cfg.GithubRedirectUrl)
+		if parseErr != nil || u.Scheme != "https" {
+			return cfg, errors.New("GITHUB_REDIRECT_URL must use https:// in production")
+		}
+	}
+
+	return cfg, nil
 }

@@ -88,3 +88,57 @@ textarea {
     display: flex;
     width: 100vw;
 }
+
+/* nav */
+.nav-brand-wrapper {
+    background-color: #1e1e1e;
+}
+
+.nav-brand-logo {
+    margin-left: 10px;
+}
+
+/* profile page */
+.profile-header {
+    text-align: center;
+    user-select: none;
+}
+
+.profile-avatar-placeholder {
+    display: inline-block;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #676a6d;
+}
+
+.profile-pastes {
+    text-align: center;
+    user-select: none;
+}
+
+.profile-pastes-empty,
+.profile-pastes-title {
+    color: #676a6d;
+}
+
+.profile-collection {
+    outline: none !important;
+    border: none !important;
+}
+
+/* main / editor page */
+.save-fab {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    margin: 15px;
+}
+
+.save-fab-icon {
+    font-size: 24px;
+}
+
+.editor-textarea {
+    width: 100%;
+}

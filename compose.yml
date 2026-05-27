@@ -51,6 +51,14 @@ services:
       timeout: 5s
       retries: 10
 
+  cloudflared:
+    image: docker.io/cloudflare/cloudflared:2026.2.0
+    restart: unless-stopped
+
+    profiles:
+      - tunnel
+    command: tunnel run --url ${CLOUDFLARE_URL} --token ${CLOUDFLARE_TUNNEL_TOKEN}
+
 volumes:
   postgres_data:
   valkey_data:

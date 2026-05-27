@@ -15,7 +15,6 @@ import (
 	"github.com/SegfaultSommeliers/sosilol/internal/http/middleware"
 	"github.com/SegfaultSommeliers/sosilol/internal/http/router"
 	"github.com/SegfaultSommeliers/sosilol/internal/http/validator"
-	"github.com/SegfaultSommeliers/sosilol/internal/logger"
 	"github.com/SegfaultSommeliers/sosilol/internal/paste"
 	"github.com/SegfaultSommeliers/sosilol/internal/paste/cache"
 	"github.com/gofiber/fiber/v3"
@@ -42,9 +41,8 @@ type App struct {
 func NewApp(
 	ctx context.Context,
 	cfg config.Config,
+	l *slog.Logger,
 ) (*App, error) {
-	l := logger.New(cfg.Environment)
-
 	redisOpts := &goredis.Options{
 		Addr: net.JoinHostPort(cfg.RedisHost, cfg.RedisPort),
 	}
@@ -86,6 +84,12 @@ func NewApp(
 	poolCfg.ConnConfig.User = cfg.PostgresUsername
 	poolCfg.ConnConfig.Password = cfg.PostgresPassword
 	poolCfg.ConnConfig.Database = cfg.PostgresDatabase
+	if cfg.PostgresTLS {
+		poolCfg.ConnConfig.TLSConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
+			ServerName: cfg.PostgresHost,
+		}
+	}
 
 	dbPool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
@@ -138,9 +142,10 @@ func NewApp(
 		},
 	})
 
-	middleware.Register(app, l, cfg, sessionConfig)
+	middleware.Register(app, l, cfg, sessionConfig, redisStorage)
 	router.RegisterRoutes(
 		app,
+		redisStorage,
 		githubService,
 		pasteService,
 	)

@@ -26,14 +26,14 @@ func NewHandler(
 }
 
 func isSafeRedirect(s string) bool {
-	u, err := url.Parse(s)
-	if err != nil {
+	if s == "" {
 		return false
 	}
-	return u.Scheme == "" && u.Host == "" &&
-		strings.HasPrefix(u.Path, "/") &&
-		!strings.HasPrefix(u.Path, "//") &&
-		!strings.ContainsAny(u.Path, `\`)
+	u, err := url.Parse(s)
+	if err != nil || u.Scheme != "" || u.Host != "" || u.User != nil || u.Opaque != "" {
+		return false
+	}
+	return strings.HasPrefix(u.Path, "/") && !strings.HasPrefix(u.Path, "//")
 }
 
 type redirectQuery struct {

@@ -18,24 +18,28 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/limiter"
 	"github.com/gofiber/fiber/v3/middleware/static"
+	"github.com/gofiber/storage/redis/v3"
 )
-
-var saveLimiter = limiter.New(limiter.Config{
-	Max:        10,
-	Expiration: 1 * time.Minute,
-})
-
-var authRequestLimiter = limiter.New(limiter.Config{
-	Max:        5,
-	Expiration: 1 * time.Minute,
-})
 
 func RegisterRoutes(
 	app *fiber.App,
+	redisStorage *redis.Storage,
 
 	githubService *github.Service,
 	pasteService *paste.Service,
 ) {
+	saveLimiter := limiter.New(limiter.Config{
+		Max:        10,
+		Expiration: 1 * time.Minute,
+		Storage:    redisStorage,
+	})
+
+	authRequestLimiter := limiter.New(limiter.Config{
+		Max:        5,
+		Expiration: 1 * time.Minute,
+		Storage:    redisStorage,
+	})
+
 	app.Get("/health", health.Handler)
 	app.Get("/", func(c fiber.Ctx) error {
 		return apphttp.Render(c, http.StatusOK, page.Main())

@@ -2,6 +2,7 @@ package paste
 
 import (
 	"net/http"
+	"strings"
 
 	apphttp "github.com/SegfaultSommeliers/sosilol/internal/http"
 	"github.com/SegfaultSommeliers/sosilol/view/page"
@@ -42,6 +43,14 @@ func (h *Handler) Save(c fiber.Ctx) error {
 	body := new(saveRequest)
 	if err := c.Bind().JSON(body); err != nil {
 		return err
+	}
+
+	if strings.TrimSpace(body.Text) == "" {
+		return &apphttp.AppError{
+			StatusCode: http.StatusBadRequest,
+			Code:       "bad_request",
+			Message:    "text must not be blank",
+		}
 	}
 
 	sess := session.FromContext(c)

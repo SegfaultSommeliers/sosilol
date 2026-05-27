@@ -2,8 +2,6 @@ import "materialize-css/dist/js/materialize.min.js";
 import hljs from "highlight.js";
 import Alpine from "@alpinejs/csp";
 
-window.hljs = hljs;
-
 Alpine.data("editor", () => ({
     text: "",
     saving: false,
@@ -69,7 +67,7 @@ function onReady(fn) {
 onReady(() => {
     const codeview = document.querySelector(".code-view");
     if (codeview) {
-        codeview.innerHTML = hljs.highlightAuto(codeview.innerText).value;
+        hljs.highlightElement(codeview);
     }
     M.Sidenav.init(document.querySelectorAll(".sidenav"), {});
 });

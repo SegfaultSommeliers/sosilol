@@ -14,20 +14,20 @@ templ Profile(
 ) {
     @layout.BaseLayout() {
         <section class="default-section" id="profile">
-            <header style="text-align: center; user-select: none;">
+            <header class="profile-header">
                 if AvatarURL != "" {
                     <img src={ AvatarURL } alt="Avatar" class="avatar">
                 } else {
-                    <div class="avatar" style="display:inline-block;width:64px;height:64px;border-radius:50%;background:#676a6d;"></div>
+                    <div class="avatar profile-avatar-placeholder"></div>
                 }
                 <h3>Профиль { Login }</h3>
             </header>
-            <div class="pastes" style="text-align: center; user-select: none;">
+            <div class="pastes profile-pastes">
                 if len(Pastes) == 0 {
-                    <h4 style="color: #676a6d">У вас нет сохранённых паст.</h4>
+                    <h4 class="profile-pastes-empty">У вас нет сохранённых паст.</h4>
                 } else {
-                    <h4 style="color: #676a6d">Ваши пасты:</h4>
-                    <div class="collection" style="outline: none !important; border: none !important;">
+                    <h4 class="profile-pastes-title">Ваши пасты:</h4>
+                    <div class="collection profile-collection">
                         for _, paste := range Pastes {
                             <a href={ fmt.Sprintf("/view/%s", paste.ID) }  class="collection-item grey darken-3">
                                 { paste.ID }
