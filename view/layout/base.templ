@@ -10,7 +10,6 @@ templ BaseLayout() {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
         <link rel="stylesheet" href="/dist/main.css">
-        <link rel="stylesheet" href="/common.css">
         <script defer src="/dist/main.js"></script>
         <title>соси лол</title>
     </head>
@@ -33,11 +32,6 @@ templ BaseLayout() {
             <li><a href="/profile">Профиль</a></li>
         </ul>
         { children... }
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-                M.Sidenav.init(document.querySelectorAll('.sidenav'), {});
-            });
-        </script>
     </body>
 
     </html>

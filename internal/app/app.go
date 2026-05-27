@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"net/http"
 	"time"
 
 	"github.com/SegfaultSommeliers/sosilol/internal/config"
@@ -19,11 +18,12 @@ import (
 	"github.com/SegfaultSommeliers/sosilol/internal/logger"
 	"github.com/SegfaultSommeliers/sosilol/internal/paste"
 	"github.com/SegfaultSommeliers/sosilol/internal/paste/cache"
-	"github.com/alexedwards/scs/goredisstore"
-	"github.com/alexedwards/scs/v2"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/extractors"
+	"github.com/gofiber/fiber/v3/middleware/session"
+	"github.com/gofiber/storage/redis/v3"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/labstack/echo/v5"
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 )
 
 // App
@@ -34,8 +34,8 @@ import (
 // @host sosi.lol
 type App struct {
 	Logger      *slog.Logger
-	Echo        *echo.Echo
-	RedisClient *redis.Client
+	Fiber       *fiber.App
+	RedisClient *goredis.Client
 	DbPool      *pgxpool.Pool
 }
 
@@ -45,7 +45,7 @@ func NewApp(
 ) (*App, error) {
 	l := logger.New(cfg.Environment)
 
-	redisOpts := &redis.Options{
+	redisOpts := &goredis.Options{
 		Addr: net.JoinHostPort(cfg.RedisHost, cfg.RedisPort),
 	}
 	if cfg.RedisTLS {
@@ -56,18 +56,20 @@ func NewApp(
 	if cfg.RedisPassword != "" {
 		redisOpts.Password = cfg.RedisPassword
 	}
-	redisClient := redis.NewClient(redisOpts)
-	sessionManager := scs.New()
-	sessionManager.Store = goredisstore.New(redisClient)
-	sessionManager.HashTokenInStore = true
-	sessionManager.IdleTimeout = 30 * time.Minute
-	sessionManager.Lifetime = 24 * time.Hour
-	sessionManager.Cookie.Name = "sosilol_session"
-	sessionManager.Cookie.Path = "/"
-	sessionManager.Cookie.HttpOnly = true
-	sessionManager.Cookie.SameSite = http.SameSiteLaxMode
-	sessionManager.Cookie.Secure = cfg.Environment != "dev"
-	sessionManager.Cookie.Persist = true
+	redisClient := goredis.NewClient(redisOpts)
+
+	redisStorage := redis.NewFromConnection(redisClient)
+	sessionConfig := session.Config{
+		Storage:           redisStorage,
+		IdleTimeout:       30 * time.Minute,
+		AbsoluteTimeout:   24 * time.Hour,
+		CookieHTTPOnly:    true,
+		CookiePath:        "/",
+		CookieSecure:      cfg.Environment != "dev",
+		CookieSessionOnly: false,
+		CookieSameSite:    "Lax",
+		Extractor:         extractors.FromCookie("sosilol_session"),
+	}
 
 	dbPool, err := pgxpool.New(
 		ctx,
@@ -116,22 +118,22 @@ func NewApp(
 		),
 	)
 
-	e := echo.New()
-	e.Validator = validator.NewCustomValidator()
-	e.HTTPErrorHandler = apphttp.CustomErrorHandler
+	app := fiber.New(fiber.Config{
+		ErrorHandler:    apphttp.NewCustomErrorHandler(l),
+		StructValidator: validator.NewCustomValidator(),
+		CaseSensitive:   true,
+	})
 
-	middleware.Register(e, l, cfg, sessionManager)
+	middleware.Register(app, l, cfg, sessionConfig)
 	router.RegisterRoutes(
-		e,
-		sessionManager,
-
+		app,
 		githubService,
 		pasteService,
 	)
 
 	return &App{
 		Logger:      l,
-		Echo:        e,
+		Fiber:       app,
 		RedisClient: redisClient,
 		DbPool:      dbPool,
 	}, nil

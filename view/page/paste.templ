@@ -3,17 +3,7 @@ package page;
 import "github.com/SegfaultSommeliers/sosilol/view/layout"
 
 templ Paste(Code string) {
-    @layout.BaseLayout() {
-        <div class="default-section code-view">
-            <pre><code id="code-block">{ Code }</code></pre>
-        </div>
-        <script>
-            document.addEventListener("DOMContentLoaded", () => {
-                const codeBlock = document.getElementById("code-block");
-                if (codeBlock && typeof hljs !== 'undefined') {
-                    hljs.highlightElement(codeBlock);
-                }
-            });
-        </script>
+    @layout.BareLayout() {
+        <div class="default-section code-view">{ Code }</div>
     }
 }

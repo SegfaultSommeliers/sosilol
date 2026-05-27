@@ -7,50 +7,45 @@ import (
 
 	"github.com/SegfaultSommeliers/sosilol/internal/github"
 	apphttp "github.com/SegfaultSommeliers/sosilol/internal/http"
-	"github.com/alexedwards/scs/v2"
-	"github.com/labstack/echo/v5"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/session"
 )
 
 type Handler struct {
-	service        *github.Service
-	sessionManager *scs.SessionManager
+	service *github.Service
 }
 
 func NewHandler(
 	service *github.Service,
-	sessionManager *scs.SessionManager,
 ) *Handler {
 	return &Handler{
-		service:        service,
-		sessionManager: sessionManager,
+		service: service,
 	}
 }
 
-func (h *Handler) RequestAuth(c *echo.Context) error {
-	ctx := c.Request().Context()
+func (h *Handler) RequestAuth(c fiber.Ctx) error {
 	nonce := rand.Text()
-	h.sessionManager.Put(c.Request().Context(), "oauth_state", nonce)
+	sess := session.FromContext(c)
 
-	redirectTo := c.QueryParam("redirect")
+	sess.Set("oauth_state", nonce)
+
+	redirectTo := c.Query("redirect")
 	if !strings.HasPrefix(redirectTo, "/") ||
 		strings.HasPrefix(redirectTo, "//") ||
 		strings.HasPrefix(redirectTo, "\\\\") {
 		redirectTo = "/profile"
 	}
 
-	h.sessionManager.Put(ctx, "redirect_after_login", redirectTo)
+	sess.Set("redirect_after_login", redirectTo)
 
-	return c.Redirect(
-		http.StatusFound,
-		h.service.GetAuthURL(nonce),
-	)
+	return c.Redirect().To(h.service.GetAuthURL(nonce))
 }
 
-func (h *Handler) RedirectAuth(c *echo.Context) error {
-	ctx := c.Request().Context()
+func (h *Handler) RedirectAuth(c fiber.Ctx) error {
+	ctx := c.Context()
 
-	code := c.QueryParam("code")
-	state := c.QueryParam("state")
+	code := c.Query("code")
+	state := c.Query("state")
 
 	if code == "" || state == "" {
 		return &apphttp.AppError{
@@ -60,7 +55,16 @@ func (h *Handler) RedirectAuth(c *echo.Context) error {
 		}
 	}
 
-	expectedState := h.sessionManager.GetString(ctx, "oauth_state")
+	sess := session.FromContext(c)
+
+	expectedState, ok := sess.Get("oauth_state").(string)
+	if !ok {
+		return &apphttp.AppError{
+			StatusCode: http.StatusBadRequest,
+			Code:       "bad_request",
+			Message:    "missing state",
+		}
+	}
 	if expectedState == "" || state != expectedState {
 		return &apphttp.AppError{
 			StatusCode: http.StatusUnauthorized,
@@ -68,21 +72,22 @@ func (h *Handler) RedirectAuth(c *echo.Context) error {
 			Message:    "state mismatch",
 		}
 	}
-
-	h.sessionManager.Remove(ctx, "oauth_state")
+	sess.Delete("oauth_state")
 
 	accessToken, err := h.service.Authorize(ctx, code)
 	if err != nil {
 		return err
 	}
 
-	h.sessionManager.Put(ctx, "account_type", "github")
-	h.sessionManager.Put(ctx, "access_token", accessToken)
+	sess.Set("account_type", "github")
+	sess.Set("access_token", accessToken)
 
-	redirectTo := h.sessionManager.PopString(ctx, "redirect_after_login")
-	if redirectTo == "" {
-		redirectTo = "/profile"
+	redirectTo := "/profile"
+	if redirectToString, ok := sess.Get("redirect_after_login").(string); ok &&
+		redirectToString != "" {
+		redirectTo = redirectToString
 	}
+	sess.Delete("redirect_after_login")
 
-	return c.Redirect(http.StatusFound, redirectTo)
+	return c.Redirect().To(redirectTo)
 }

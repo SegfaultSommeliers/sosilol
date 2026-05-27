@@ -1,13 +1,11 @@
 package health
 
 import (
-	"net/http"
-
-	"github.com/labstack/echo/v5"
+	"github.com/gofiber/fiber/v3"
 )
 
-func Handler(c *echo.Context) error {
-	return c.JSON(http.StatusOK, map[string]string{
+func Handler(c fiber.Ctx) error {
+	return c.JSON(fiber.Map{
 		"status": "ok",
 	})
 }

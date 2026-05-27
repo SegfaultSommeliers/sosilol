@@ -1,9 +1,10 @@
 package router
 
 import (
+	"io/fs"
 	"net/http"
-	"time"
 
+	_ "github.com/SegfaultSommeliers/sosilol/docs"
 	"github.com/SegfaultSommeliers/sosilol/internal/embed"
 	"github.com/SegfaultSommeliers/sosilol/internal/github"
 	"github.com/SegfaultSommeliers/sosilol/internal/github/auth"
@@ -12,66 +13,48 @@ import (
 	apphttp "github.com/SegfaultSommeliers/sosilol/internal/http"
 	"github.com/SegfaultSommeliers/sosilol/internal/paste"
 	"github.com/SegfaultSommeliers/sosilol/view/page"
-	"github.com/alexedwards/scs/v2"
-	"github.com/labstack/echo/v5"
-	"github.com/labstack/echo/v5/middleware"
-	echoSwagger "github.com/swaggo/echo-swagger/v2"
-
-	_ "github.com/SegfaultSommeliers/sosilol/docs"
+	"github.com/gofiber/contrib/v3/swaggo"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/static"
 )
 
 func RegisterRoutes(
-	e *echo.Echo,
-	sessionManager *scs.SessionManager,
+	app *fiber.App,
 
 	githubService *github.Service,
 	pasteService *paste.Service,
 ) {
-	authRateConfig := middleware.RateLimiterConfig{
-		Store: middleware.NewRateLimiterMemoryStoreWithConfig(
-			middleware.RateLimiterMemoryStoreConfig{
-				Rate:      5,
-				Burst:     10,
-				ExpiresIn: time.Minute,
-			},
-		),
-		ErrorHandler: func(c *echo.Context, err error) error {
-			return err
-		},
-		DenyHandler: func(c *echo.Context, identifier string, err error) error {
-			return &apphttp.AppError{
-				StatusCode: http.StatusTooManyRequests,
-				Code:       "rate_limit_exceeded",
-				Message:    "rate limit exceeded",
-			}
-		},
-	}
-
-	e.GET("/health", health.Handler)
-	e.GET("/", func(c *echo.Context) error {
+	app.Get("/health", health.Handler)
+	app.Get("/", func(c fiber.Ctx) error {
 		return apphttp.Render(c, http.StatusOK, page.Main())
 	})
-	e.GET("/v1/swagger-ui/*", echoSwagger.WrapHandlerV3)
-	e.StaticFS("/", echo.MustSubFS(embed.Static, "static"))
+	app.Get("/v1/swagger-ui/*", swaggo.HandlerDefault)
+	subFS, err := fs.Sub(embed.Static, "static")
+	if err != nil {
+		panic(err)
+	}
+
+	app.Use("/", static.New("", static.Config{
+		FS:         subFS,
+		Browse:     false,
+		IndexNames: []string{},
+	}))
 
 	authHandler := auth.NewHandler(
 		githubService,
-		sessionManager,
 	)
 
-	authGroup := e.Group("/auth", middleware.RateLimiterWithConfig(authRateConfig))
-	authGroup.GET("/request", authHandler.RequestAuth)
-	authGroup.GET("/redirect", authHandler.RedirectAuth)
+	authGroup := app.Group("/auth")
+	authGroup.Get("/request", authHandler.RequestAuth)
+	authGroup.Get("/redirect", authHandler.RedirectAuth)
 
-	e.GET("/profile", profile.NewHandler(
+	app.Get("/profile", profile.NewHandler(
 		githubService,
-		sessionManager,
 	))
 	pasteHandler := paste.NewHandler(
-		sessionManager,
 		pasteService,
 	)
-	e.POST("/save", pasteHandler.Save)
-	e.GET("/view/:id", pasteHandler.View)
-	e.GET("/raw/:id", pasteHandler.Raw)
+	app.Post("/save", pasteHandler.Save)
+	app.Get("/view/:id", pasteHandler.View)
+	app.Get("/raw/:id", pasteHandler.Raw)
 }

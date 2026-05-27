@@ -5,31 +5,7 @@ import "github.com/SegfaultSommeliers/sosilol/view/layout"
 templ Main() {
     @layout.BaseLayout() {
         <div
-            x-data="{
-                text: '',
-                saving: false,
-                async save() {
-                    if (!this.text || this.text.length < 1) return;
-                    this.saving = true;
-                    try {
-                        const resp = await fetch('/save', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                            body: 'text=' + encodeURIComponent(this.text),
-                            redirect: 'follow'
-                        });
-                        const id = resp.url.split('/view/')[1];
-                        if (id) {
-                            const newUrl = window.location.origin + '/view/' + id;
-                            await navigator.clipboard.writeText(newUrl).catch(() => {});
-
-                            window.location.href = '/view/' + id;
-                        }
-                    } finally {
-                        this.saving = false;
-                    }
-                }
-            }"
+            x-data="editor"
             @keydown.ctrl.s.window.prevent="save()"
         >
             <button
@@ -45,12 +21,7 @@ templ Main() {
                     style="width: 100%;"
                     placeholder="Пиши сюда"
                     x-model="text"
-                    @keydown.tab.prevent="
-                        const s = $el.selectionStart;
-                        const e = $el.selectionEnd;
-                        text = text.substring(0, s) + '\t' + text.substring(e);
-                        $nextTick(() => { $el.selectionStart = $el.selectionEnd = s + 1; });
-                    "
+                    @keydown.tab.prevent="handleTab($event)"
                 ></textarea>
             </div>
         </div>

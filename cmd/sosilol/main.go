@@ -2,14 +2,16 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/SegfaultSommeliers/sosilol/internal/app"
 	"github.com/SegfaultSommeliers/sosilol/internal/config"
-	"github.com/labstack/echo/v5"
+	"github.com/gofiber/fiber/v3"
 )
 
 func main() {
@@ -24,20 +26,20 @@ func main() {
 	a, err := app.NewApp(ctx, cfg)
 	if err != nil {
 		log.Fatalf("error creating app: %v", err)
+		return
 	}
 	defer func(a *app.App) {
 		err := a.Close()
 		if err != nil {
 			log.Printf("error closing app: %v", err)
+			return
 		}
 	}(a)
 
-	startConfig := echo.StartConfig{
-		Address:         cfg.HttpAddress,
-		GracefulTimeout: cfg.GracefulTimeout,
-	}
-
-	if err := startConfig.Start(ctx, a.Echo); err != nil {
+	if err := a.Fiber.Listen(cfg.HttpAddress, fiber.ListenConfig{
+		GracefulContext: ctx,
+		ShutdownTimeout: cfg.GracefulTimeout,
+	}); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		a.Logger.Error("failed to start app", "error", err)
 	}
 

@@ -6,20 +6,18 @@ import (
 
 	apphttp "github.com/SegfaultSommeliers/sosilol/internal/http"
 	"github.com/SegfaultSommeliers/sosilol/view/page"
-	"github.com/alexedwards/scs/v2"
-	"github.com/labstack/echo/v5"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/session"
 )
 
 const maxPasteSize = 1 * 1024 * 1024
 
 type Handler struct {
-	sessionManager *scs.SessionManager
-
 	service *Service
 }
 
-func NewHandler(sessionManager *scs.SessionManager, service *Service) *Handler {
-	return &Handler{sessionManager: sessionManager, service: service}
+func NewHandler(service *Service) *Handler {
+	return &Handler{service: service}
 }
 
 // Save
@@ -32,8 +30,8 @@ func NewHandler(sessionManager *scs.SessionManager, service *Service) *Handler {
 // @Success      302   {string}  string  "Редирект на /view/{id}"
 // @Failure      500   {string}  string  "Внутренняя ошибка сервера"
 // @Router       /save [post]
-func (h *Handler) Save(c *echo.Context) error {
-	ctx := c.Request().Context()
+func (h *Handler) Save(c fiber.Ctx) error {
+	ctx := c.Context()
 	text := c.FormValue("text")
 
 	if text == "" {
@@ -52,24 +50,21 @@ func (h *Handler) Save(c *echo.Context) error {
 		}
 	}
 
-	accountType := h.sessionManager.GetString(ctx, "account_type")
-	accessToken := h.sessionManager.GetString(ctx, "access_token")
+	sess := session.FromContext(c)
+	accountType, _ := sess.Get("account_type").(string)
+	accessToken, _ := sess.Get("access_token").(string)
 
+	token := ""
 	if accountType != "" && accessToken != "" {
-		id, err := h.service.Save(ctx, text, accessToken)
-		if err != nil {
-			return err
-		}
-
-		return c.Redirect(http.StatusFound, fmt.Sprintf("/view/%s", id))
+		token = accessToken
 	}
 
-	id, err := h.service.Save(ctx, text, "")
+	id, err := h.service.Save(ctx, text, token)
 	if err != nil {
 		return err
 	}
 
-	return c.Redirect(http.StatusFound, fmt.Sprintf("/view/%s", id))
+	return c.Redirect().To(fmt.Sprintf("/view/%s", id))
 }
 
 // View
@@ -81,16 +76,16 @@ func (h *Handler) Save(c *echo.Context) error {
 // @Success      200  {string}  string  "HTML-страница с пастой"
 // @Failure      302  {string}  string  "Редирект на / при отсутствии id или ошибке"
 // @Router       /view/{id} [get]
-func (h *Handler) View(c *echo.Context) error {
-	ctx := c.Request().Context()
-	id := c.Param("id")
+func (h *Handler) View(c fiber.Ctx) error {
+	ctx := c.Context()
+	id := c.Params("id")
 	if id == "" {
-		return c.Redirect(http.StatusFound, "/")
+		return c.Redirect().To("/")
 	}
 
 	code, err := h.service.LoadRaw(ctx, id)
 	if err != nil {
-		return c.Redirect(http.StatusFound, "/")
+		return c.Redirect().To("/")
 	}
 
 	return apphttp.Render(c, http.StatusOK, page.Paste(code))
@@ -106,9 +101,9 @@ func (h *Handler) View(c *echo.Context) error {
 // @Failure      400  {string}  string  "id обязателен"
 // @Failure      500  {string}  string  "Внутренняя ошибка сервера"
 // @Router       /raw/{id} [get]
-func (h *Handler) Raw(c *echo.Context) error {
-	ctx := c.Request().Context()
-	id := c.Param("id")
+func (h *Handler) Raw(c fiber.Ctx) error {
+	ctx := c.Context()
+	id := c.Params("id")
 	if id == "" {
 		return &apphttp.AppError{
 			StatusCode: http.StatusBadRequest,
@@ -122,5 +117,5 @@ func (h *Handler) Raw(c *echo.Context) error {
 		return err
 	}
 
-	return c.String(http.StatusOK, code)
+	return c.SendString(code)
 }

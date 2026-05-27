@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/SegfaultSommeliers/sosilol/internal/http/validator"
-	"github.com/labstack/echo/v5"
+	"github.com/gofiber/fiber/v3"
 )
 
 type ErrorResponse struct {
@@ -27,76 +27,60 @@ func (e *AppError) Error() string {
 
 func sendError(
 	log *slog.Logger,
-	c *echo.Context,
+	ctx fiber.Ctx,
 	status int,
 	resp ErrorResponse,
-) {
-	if err := c.JSON(status, resp); err != nil {
+) error {
+	if err := ctx.Status(status).JSON(resp); err != nil {
 		log.Error("failed to send error response", "error", err)
+		return err
 	}
+	return nil
 }
 
-func CustomErrorHandler(
-	c *echo.Context,
-	err error,
-) {
-	log := c.Logger()
-
-	resp, uErr := echo.UnwrapResponse(c.Response())
-	if uErr != nil {
-		log.Error("failed to unwrap response", "error", uErr)
-		return
-	}
-	if resp.Committed {
-		log.Warn("response already committed, cannot send error response")
-		return
-	}
-
-	if validationErr, ok := errors.AsType[*validator.ValidationError](err); ok {
-		sendError(log, c, http.StatusBadRequest, ErrorResponse{
-			Code:    "validation_error",
-			Message: "validation failed",
-			Errors:  validationErr.Fields,
-		})
-		return
-	}
-
-	if httpErr, ok := errors.AsType[*echo.HTTPError](err); ok {
-		msg := httpErr.Message
-		if msg == "" {
-			msg = http.StatusText(httpErr.Code)
+func NewCustomErrorHandler(log *slog.Logger) fiber.ErrorHandler {
+	return func(
+		ctx fiber.Ctx,
+		err error,
+	) error {
+		if err == nil {
+			return nil
 		}
 
-		sendError(log, c, httpErr.Code, ErrorResponse{
-			Code:    "http_error",
-			Message: msg,
+		if validationErr, ok := errors.AsType[*validator.ValidationError](err); ok {
+			return sendError(log, ctx, http.StatusBadRequest, ErrorResponse{
+				Code:    "validation_error",
+				Message: "validation failed",
+				Errors:  validationErr.Fields,
+			})
+		}
+
+		if fiberErr, ok := errors.AsType[*fiber.Error](err); ok {
+			msg := fiberErr.Message
+			if msg == "" {
+				msg = http.StatusText(fiberErr.Code)
+			}
+
+			return sendError(log, ctx, fiberErr.Code, ErrorResponse{
+				Code:    "http_error",
+				Message: msg,
+			})
+		}
+
+		if appErr, ok := errors.AsType[*AppError](err); ok {
+			statusCode := appErr.StatusCode
+			code := appErr.Code
+			msg := appErr.Message
+
+			return sendError(log, ctx, statusCode, ErrorResponse{
+				Code:    code,
+				Message: msg,
+			})
+		}
+
+		return sendError(log, ctx, http.StatusInternalServerError, ErrorResponse{
+			Code:    "internal_error",
+			Message: "internal server error",
 		})
-		return
 	}
-
-	if appErr, ok := errors.AsType[*AppError](err); ok {
-		statusCode := appErr.StatusCode
-		code := appErr.Code
-		msg := appErr.Message
-
-		sendError(log, c, statusCode, ErrorResponse{
-			Code:    code,
-			Message: msg,
-		})
-		return
-	}
-
-	code := echo.StatusCode(err)
-	if code != 0 {
-		sendError(log, c, code, ErrorResponse{
-			Code:    "http_error",
-			Message: http.StatusText(code),
-		})
-		return
-	}
-
-	sendError(log, c, http.StatusInternalServerError, ErrorResponse{
-		Code:    "internal_error",
-		Message: "internal server error",
-	})
 }

@@ -2,22 +2,15 @@ package http
 
 import (
 	"github.com/a-h/templ"
-	"github.com/labstack/echo/v5"
+	"github.com/gofiber/fiber/v3"
 )
 
 func Render(
-	c *echo.Context,
+	c fiber.Ctx,
 	statusCode int,
 	t templ.Component,
 ) error {
-	ctx := c.Request().Context()
-
-	buf := templ.GetBuffer()
-	defer templ.ReleaseBuffer(buf)
-
-	if err := t.Render(ctx, buf); err != nil {
-		return err
-	}
-
-	return c.HTML(statusCode, buf.String())
+	c.Set("Content-Type", "text/html; charset=utf-8")
+	c.Status(statusCode)
+	return t.Render(c.Context(), c.Response().BodyWriter())
 }

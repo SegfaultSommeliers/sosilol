@@ -6,24 +6,24 @@ import (
 	"github.com/SegfaultSommeliers/sosilol/internal/github"
 	apphttp "github.com/SegfaultSommeliers/sosilol/internal/http"
 	"github.com/SegfaultSommeliers/sosilol/view/page"
-	"github.com/alexedwards/scs/v2"
-	"github.com/labstack/echo/v5"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/session"
 )
 
 func NewHandler(
 	githubService *github.Service,
-	sessionManager *scs.SessionManager,
-) func(c *echo.Context) error {
-	return func(c *echo.Context) error {
-		ctx := c.Request().Context()
+) func(c fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
+		ctx := c.Context()
+		sess := session.FromContext(c)
 
-		accountType := sessionManager.GetString(ctx, "account_type")
-		if accountType != "github" {
-			return c.Redirect(http.StatusFound, "/auth/request")
+		accountType, ok := sess.Get("account_type").(string)
+		if !ok || accountType != "github" {
+			return c.Redirect().To("/auth/request")
 		}
-		accessToken := sessionManager.GetString(ctx, "access_token")
-		if accessToken == "" {
-			return c.Redirect(http.StatusFound, "/auth/request")
+		accessToken, ok := sess.Get("access_token").(string)
+		if !ok || accessToken == "" {
+			return c.Redirect().To("/auth/request")
 		}
 
 		profile, err := githubService.GetProfile(ctx, accessToken)

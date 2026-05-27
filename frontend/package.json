@@ -5,6 +5,7 @@
   },
   "dependencies": {
     "@fontsource/montserrat": "^5.2.8",
+    "@fontsource/ubuntu-mono": "^5.2.8",
     "@fortawesome/fontawesome-free": "^7.2.0",
     "alpinejs": "^3.15.12",
     "highlight.js": "^11.11.1",
