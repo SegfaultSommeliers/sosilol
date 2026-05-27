@@ -52,34 +52,23 @@ func (cv *CustomValidator) Validate(i any) error {
 		return err
 	}
 
+	t := reflect.TypeOf(i)
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
 	fields := make(map[string][]string, len(ve))
 	for _, fe := range ve {
-		field := fe.Field()
-		fields[field] = append(fields[field], validationMessage(fe))
+		msg := "is invalid"
+		if sf, ok := t.FieldByName(fe.StructField()); ok {
+			if m := sf.Tag.Get("message"); m != "" {
+				msg = m
+			}
+		}
+		fields[fe.Field()] = append(fields[fe.Field()], msg)
 	}
 
 	return &ValidationError{
 		Fields: fields,
-	}
-}
-
-func validationMessage(fe validator.FieldError) string {
-	switch fe.Tag() {
-	case "required":
-		return "this field is required"
-	case "email":
-		return "must be a valid email"
-	case "min":
-		return "must be at least " + fe.Param()
-	case "max":
-		return "must be at most " + fe.Param()
-	case "gte":
-		return "must be greater than or equal to " + fe.Param()
-	case "lte":
-		return "must be less than or equal to " + fe.Param()
-	case "alphanum":
-		return "must be alphanumeric"
-	default:
-		return "is invalid"
 	}
 }

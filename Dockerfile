@@ -1,4 +1,4 @@
-FROM docker.io/oven/bun:1-alpine AS frontend-builder
+FROM docker.io/oven/bun:1.3.14-alpine AS frontend-builder
 
 WORKDIR /frontend-build
 
@@ -21,13 +21,21 @@ COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download && go mod verify
 
-COPY . .
+COPY view/ ./view/
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go tool templ generate
 
-COPY --from=frontend-builder /dist/ ./internal/embed/static/dist/
+COPY sqlc.yaml ./
+COPY db/ ./db/
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go tool sqlc generate
 
-RUN go tool templ generate && \
-    go tool sqlc generate && \
+COPY internal/ ./internal/
+RUN --mount=type=cache,target=/go/pkg/mod \
     go tool swag init -g internal/app/app.go --output docs
+
+COPY ["cmd/", "./cmd/"]
+COPY --from=frontend-builder /dist/ ./internal/embed/static/dist/
 
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \

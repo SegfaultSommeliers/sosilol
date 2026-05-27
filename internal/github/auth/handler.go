@@ -32,7 +32,28 @@ func isSafeRedirect(s string) bool {
 	}
 	return u.Scheme == "" && u.Host == "" &&
 		strings.HasPrefix(u.Path, "/") &&
-		!strings.HasPrefix(u.Path, "//")
+		!strings.HasPrefix(u.Path, "//") &&
+		!strings.ContainsAny(u.Path, `\`)
+}
+
+type redirectQuery struct {
+	Code  string `query:"code"  validate:"required" message:"missing code"`
+	State string `query:"state" validate:"required" message:"missing state"`
+}
+
+// Logout
+// @Summary      Log out
+// @Description  Destroys the current session and redirects to the home page.
+// @Tags         auth
+// @Success      302  {string}  string  "Redirect to /"
+// @Failure      500  {string}  string  "Internal server error"
+// @Router       /auth/logout [post]
+func (h *Handler) Logout(c fiber.Ctx) error {
+	sess := session.FromContext(c)
+	if err := sess.Destroy(); err != nil {
+		return err
+	}
+	return c.Redirect().To("/")
 }
 
 func (h *Handler) RequestAuth(c fiber.Ctx) error {
@@ -53,15 +74,9 @@ func (h *Handler) RequestAuth(c fiber.Ctx) error {
 func (h *Handler) RedirectAuth(c fiber.Ctx) error {
 	ctx := c.Context()
 
-	code := c.Query("code")
-	state := c.Query("state")
-
-	if code == "" || state == "" {
-		return &apphttp.AppError{
-			StatusCode: http.StatusBadRequest,
-			Code:       "bad_request",
-			Message:    "missing code or state",
-		}
+	q := new(redirectQuery)
+	if err := c.Bind().Query(q); err != nil {
+		return err
 	}
 
 	sess := session.FromContext(c)
@@ -75,7 +90,7 @@ func (h *Handler) RedirectAuth(c fiber.Ctx) error {
 		}
 	}
 
-	if expectedState == "" || subtle.ConstantTimeCompare([]byte(state), []byte(expectedState)) != 1 {
+	if expectedState == "" || subtle.ConstantTimeCompare([]byte(q.State), []byte(expectedState)) != 1 {
 		return &apphttp.AppError{
 			StatusCode: http.StatusUnauthorized,
 			Code:       "unauthorized",
@@ -84,7 +99,7 @@ func (h *Handler) RedirectAuth(c fiber.Ctx) error {
 	}
 	sess.Delete("oauth_state")
 
-	accessToken, err := h.service.Authorize(ctx, code)
+	accessToken, err := h.service.Authorize(ctx, q.Code)
 	if err != nil {
 		return err
 	}

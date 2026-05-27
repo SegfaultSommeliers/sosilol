@@ -1,22 +1,83 @@
 version: "2"
+
 run:
   timeout: 5m
+  tests: true
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 50
 
 linters:
   default: none
   enable:
+    # correctness
     - govet
     - errcheck
     - staticcheck
     - unused
+    - errorlint
+    - nilerr
+    - forcetypeassert
+    - copyloopvar
+    - ineffassign
+    # style
     - revive
-    - gosec
+    - misspell
+    - errname
+    - predeclared
+    - whitespace
+    # complexity / duplication
     - goconst
+    # performance
+    - perfsprint
+    - unconvert
+    # security & resources
+    - gosec
     - bodyclose
+    - noctx
+    - sqlclosecheck
+    - rowserrcheck
+    # logging
+    - sloglint
+    # modernization & meta
+    - modernize
+    - usestdlibvars
+    - intrange
+    - nolintlint
+
   settings:
+    errcheck:
+      check-type-assertions: true
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    nolintlint:
+      require-explanation: true
+      require-specific: true
     revive:
       rules:
         - name: comments-density
           disabled: true
         - name: package-comments
           disabled: true
+
+  exclusions:
+    paths:
+      - internal/db/
+      - docs/
+      - view/.*_templ\.go$
+
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+  settings:
+    gofumpt:
+      extra-rules: true
+  exclusions:
+    generated: lax
+    paths:
+      - internal/db/
+      - docs/
+      - view/.*_templ\.go$

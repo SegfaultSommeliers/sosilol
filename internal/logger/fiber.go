@@ -3,6 +3,8 @@ package logger
 import (
 	"context"
 	"log/slog"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -40,6 +42,22 @@ func FromContext(ctx context.Context) *slog.Logger {
 	return slog.Default()
 }
 
+var sensitivePathPrefixes = []string{"/auth/"}
+
+func sanitizeURL(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	for _, prefix := range sensitivePathPrefixes {
+		if strings.HasPrefix(u.Path, prefix) && u.RawQuery != "" {
+			u.RawQuery = "[redacted]"
+			return u.String()
+		}
+	}
+	return rawURL
+}
+
 func NewRequestLogger(config ...Config) fiber.Handler {
 	cfg := configDefault(config...)
 
@@ -68,7 +86,7 @@ func NewRequestLogger(config ...Config) fiber.Handler {
 		attrs := []any{
 			slog.String("method", c.Method()),
 			slog.String("path", c.Path()),
-			slog.String("uri", c.OriginalURL()),
+			slog.String("uri", sanitizeURL(c.OriginalURL())),
 			slog.Int("status", status),
 			slog.Duration("latency", latency),
 			slog.String("remote_ip", c.IP()),

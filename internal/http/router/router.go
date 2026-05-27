@@ -3,6 +3,7 @@ package router
 import (
 	"io/fs"
 	"net/http"
+	"time"
 
 	_ "github.com/SegfaultSommeliers/sosilol/docs"
 	"github.com/SegfaultSommeliers/sosilol/internal/embed"
@@ -15,8 +16,19 @@ import (
 	"github.com/SegfaultSommeliers/sosilol/view/page"
 	"github.com/gofiber/contrib/v3/swaggo"
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/limiter"
 	"github.com/gofiber/fiber/v3/middleware/static"
 )
+
+var saveLimiter = limiter.New(limiter.Config{
+	Max:        10,
+	Expiration: 1 * time.Minute,
+})
+
+var authRequestLimiter = limiter.New(limiter.Config{
+	Max:        5,
+	Expiration: 1 * time.Minute,
+})
 
 func RegisterRoutes(
 	app *fiber.App,
@@ -45,8 +57,9 @@ func RegisterRoutes(
 	)
 
 	authGroup := app.Group("/auth")
-	authGroup.Get("/request", authHandler.RequestAuth)
+	authGroup.Get("/request", authRequestLimiter, authHandler.RequestAuth)
 	authGroup.Get("/redirect", authHandler.RedirectAuth)
+	authGroup.Post("/logout", authHandler.Logout)
 
 	app.Get("/profile", profile.NewHandler(
 		githubService,
@@ -54,7 +67,7 @@ func RegisterRoutes(
 	pasteHandler := paste.NewHandler(
 		pasteService,
 	)
-	app.Post("/save", pasteHandler.Save)
+	app.Post("/save", saveLimiter, pasteHandler.Save)
 	app.Get("/view/:id", pasteHandler.View)
 	app.Get("/raw/:id", pasteHandler.Raw)
 }

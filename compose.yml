@@ -7,11 +7,11 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_HOST: postgres
-      REDIS_HOST: redis
+      REDIS_HOST: valkey
     depends_on:
       migrate:
         condition: service_completed_successfully
-      redis:
+      valkey:
         condition: service_healthy
 
   migrate:
@@ -41,16 +41,16 @@ services:
       timeout: 5s
       retries: 10
 
-  redis:
-    image: docker.io/library/redis:8.6.3-alpine3.23
+  valkey:
+    image: docker.io/valkey/valkey:9.1.0-alpine3.23
     volumes:
-      - redis_data:/data
+      - valkey_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
   postgres_data:
-  redis_data:
+  valkey_data:

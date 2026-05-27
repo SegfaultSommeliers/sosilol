@@ -127,8 +127,7 @@ func (s *Service) GetPastesByUserID(
 	pastes := make([]model.Paste, len(dbPastes))
 	for i, dbPaste := range dbPastes {
 		pastes[i] = model.Paste{
-			ID:   dbPaste.ID,
-			Code: dbPaste.Code,
+			ID: dbPaste.ID,
 		}
 	}
 	return pastes, nil

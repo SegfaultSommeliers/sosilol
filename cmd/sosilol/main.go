@@ -42,5 +42,4 @@ func main() {
 	}); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		a.Logger.Error("failed to start app", "error", err)
 	}
-
 }

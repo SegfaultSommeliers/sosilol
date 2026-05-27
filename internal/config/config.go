@@ -7,8 +7,17 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type Environment string
+
+const (
+	EnvDev  Environment = "dev"
+	EnvProd Environment = "prod"
+)
+
+func (e Environment) IsDev() bool { return e == EnvDev }
+
 type Config struct {
-	Environment string `env:"ENVIRONMENT"`
+	Environment Environment `env:"ENVIRONMENT" envDefault:"prod"`
 
 	HttpAddress     string        `env:"HTTP_ADDRESS,required"`
 	GracefulTimeout time.Duration `env:"GRACEFUL_TIMEOUT" envDefault:"10s"`
@@ -24,6 +33,8 @@ type Config struct {
 	RedisPassword string        `env:"REDIS_PASSWORD" envDefault:""`
 	RedisTLS      bool          `env:"REDIS_TLS" envDefault:"false"`
 	PasteCacheTTL time.Duration `env:"PASTE_CACHE_TTL" envDefault:"1h"`
+
+	TrustedProxy string `env:"TRUSTED_PROXY" envDefault:""`
 
 	GithubClientId     string `env:"GITHUB_CLIENT_ID,required"`
 	GithubClientSecret string `env:"GITHUB_SECRET,required"`

@@ -65,7 +65,7 @@ func NewApp(
 		AbsoluteTimeout:   24 * time.Hour,
 		CookieHTTPOnly:    true,
 		CookiePath:        "/",
-		CookieSecure:      cfg.Environment != "dev",
+		CookieSecure:      !cfg.Environment.IsDev(),
 		CookieSessionOnly: true,
 		CookieSameSite:    "Lax",
 		Extractor:         extractors.FromCookie("sosilol_session"),
@@ -127,11 +127,14 @@ func NewApp(
 		ErrorHandler:    apphttp.NewCustomErrorHandler(l),
 		StructValidator: validator.NewCustomValidator(),
 		CaseSensitive:   true,
-		TrustProxy:      true,
+		TrustProxy:      cfg.TrustedProxy != "",
 		TrustProxyConfig: fiber.TrustProxyConfig{
-			Private:   true,
-			Loopback:  true,
-			LinkLocal: true,
+			Proxies: func() []string {
+				if cfg.TrustedProxy != "" {
+					return []string{cfg.TrustedProxy}
+				}
+				return nil
+			}(),
 		},
 	})
 

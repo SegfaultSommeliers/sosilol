@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/SegfaultSommeliers/sosilol/internal/config"
@@ -28,16 +29,17 @@ func Register(
 	app.Use(recoverer.New())
 
 	var hstsMaxAge int
-	if cfg.Environment != "dev" {
+	if !cfg.Environment.IsDev() {
 		hstsMaxAge = 31536000
 	}
 	app.Use(helmet.New(helmet.Config{
+		Next:                  func(c fiber.Ctx) bool { return strings.HasPrefix(c.Path(), "/v1/swagger-ui/") },
 		XFrameOptions:         "DENY",
 		HSTSMaxAge:            hstsMaxAge,
-		HSTSPreloadEnabled:    cfg.Environment != "dev",
+		HSTSPreloadEnabled:    !cfg.Environment.IsDev(),
 		HSTSExcludeSubdomains: false,
 		ReferrerPolicy:        "strict-origin-when-cross-origin",
-		ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' https: data:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests",
+		ContentSecurityPolicy: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' https: data:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests",
 	}))
 
 	app.Use(session.New(sessionConfig))
@@ -47,8 +49,11 @@ func Register(
 		Expiration: 1 * time.Minute,
 	}))
 
+	// Default extractor is FromHeader("X-Csrf-Token").
+	// CookieHTTPOnly must be false so the JS client can read the cookie for the double-submit pattern.
 	app.Use(csrf.New(csrf.Config{
-		CookieSecure:   cfg.Environment != "dev",
+		CookieSecure:   !cfg.Environment.IsDev(),
 		CookieSameSite: "Lax",
+		CookieHTTPOnly: false,
 	}))
 }

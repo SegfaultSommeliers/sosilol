@@ -2,7 +2,6 @@ package paste
 
 import (
 	"net/http"
-	"regexp"
 
 	apphttp "github.com/SegfaultSommeliers/sosilol/internal/http"
 	"github.com/SegfaultSommeliers/sosilol/view/page"
@@ -10,11 +9,13 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/session"
 )
 
-const maxPasteSize = 1 * 1024 * 1024
+type saveRequest struct {
+	Text string `json:"text" validate:"required,max=1048576" message:"text is required or too large"`
+}
 
-// validPasteID matches exactly the 7-character alphanumeric IDs produced by
-// go-nanoid. Reject anything else before hitting Redis or PostgreSQL.
-var validPasteID = regexp.MustCompile(`^[a-zA-Z0-9]{7}$`)
+type pasteIDParams struct {
+	ID string `params:"id" validate:"required,len=7,alphanum" message:"invalid paste id"`
+}
 
 type Handler struct {
 	service *Service
@@ -38,38 +39,15 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) Save(c fiber.Ctx) error {
 	ctx := c.Context()
 
-	var body struct {
-		Text string `json:"text"`
-	}
-	if err := c.Bind().JSON(&body); err != nil {
-		return &apphttp.AppError{
-			StatusCode: http.StatusBadRequest,
-			Code:       "bad_request",
-			Message:    "invalid JSON body",
-		}
-	}
-
-	if body.Text == "" {
-		return &apphttp.AppError{
-			StatusCode: http.StatusBadRequest,
-			Code:       "bad_request",
-			Message:    "text is required",
-		}
-	}
-
-	if len(body.Text) > maxPasteSize {
-		return &apphttp.AppError{
-			StatusCode: http.StatusBadRequest,
-			Code:       "bad_request",
-			Message:    "text too large",
-		}
+	body := new(saveRequest)
+	if err := c.Bind().JSON(body); err != nil {
+		return err
 	}
 
 	sess := session.FromContext(c)
 	accountType, _ := sess.Get("account_type").(string)
 	userID, _ := sess.Get("github_user_id").(int64)
 
-	// Pass userID=0 when the user is not authenticated; service treats 0 as anonymous.
 	var authorID int64
 	if accountType == "github" && userID != 0 {
 		authorID = userID
@@ -94,12 +72,13 @@ func (h *Handler) Save(c fiber.Ctx) error {
 // @Router       /view/{id} [get]
 func (h *Handler) View(c fiber.Ctx) error {
 	ctx := c.Context()
-	id := c.Params("id")
-	if id == "" || !validPasteID.MatchString(id) {
+
+	params := new(pasteIDParams)
+	if err := c.Bind().URI(params); err != nil {
 		return c.Redirect().To("/")
 	}
 
-	code, err := h.service.LoadRaw(ctx, id)
+	code, err := h.service.LoadRaw(ctx, params.ID)
 	if err != nil {
 		return c.Redirect().To("/")
 	}
@@ -114,29 +93,18 @@ func (h *Handler) View(c fiber.Ctx) error {
 // @Produce      plain
 // @Param        id   path      string  true  "Paste ID"
 // @Success      200  {string}  string  "Raw paste content"
-// @Failure      400  {string}  string  "id is required"
+// @Failure      400  {string}  string  "invalid paste id"
 // @Failure      500  {string}  string  "Internal server error"
 // @Router       /raw/{id} [get]
 func (h *Handler) Raw(c fiber.Ctx) error {
 	ctx := c.Context()
-	id := c.Params("id")
-	if id == "" {
-		return &apphttp.AppError{
-			StatusCode: http.StatusBadRequest,
-			Code:       "bad_request",
-			Message:    "id is required",
-		}
+
+	params := new(pasteIDParams)
+	if err := c.Bind().URI(params); err != nil {
+		return err
 	}
 
-	if !validPasteID.MatchString(id) {
-		return &apphttp.AppError{
-			StatusCode: http.StatusBadRequest,
-			Code:       "bad_request",
-			Message:    "invalid id",
-		}
-	}
-
-	code, err := h.service.LoadRaw(ctx, id)
+	code, err := h.service.LoadRaw(ctx, params.ID)
 	if err != nil {
 		return err
 	}

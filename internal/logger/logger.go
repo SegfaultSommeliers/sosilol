@@ -3,11 +3,13 @@ package logger
 import (
 	"log/slog"
 	"os"
+
+	"github.com/SegfaultSommeliers/sosilol/internal/config"
 )
 
-func New(env string) *slog.Logger {
+func New(env config.Environment) *slog.Logger {
 	level := slog.LevelInfo
-	if env == "dev" {
+	if env.IsDev() {
 		level = slog.LevelDebug
 	}
 

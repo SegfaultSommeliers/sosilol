@@ -15,9 +15,7 @@ import (
 	gonanoid "github.com/matoous/go-nanoid/v2"
 )
 
-var (
-	ErrPasteNotFound = errors.New("paste not found")
-)
+var ErrPasteNotFound = errors.New("paste not found")
 
 const (
 	alphabet   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -61,7 +59,7 @@ func (s *Service) Save(
 		}
 	}
 
-	for i := 0; i < maxRetries; i++ {
+	for range maxRetries {
 		generatedID, err := generateID()
 		if err != nil {
 			return "", fmt.Errorf("failed to generate id: %w", err)
