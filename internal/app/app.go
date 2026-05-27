@@ -28,9 +28,9 @@ import (
 
 // App
 //
-// @title соси лол
+// @title sosi.lol
 // @version v1
-// @description Лучшая паста на свете
+// @description A simple paste service
 // @host sosi.lol
 type App struct {
 	Logger      *slog.Logger
@@ -66,22 +66,28 @@ func NewApp(
 		CookieHTTPOnly:    true,
 		CookiePath:        "/",
 		CookieSecure:      cfg.Environment != "dev",
-		CookieSessionOnly: false,
+		CookieSessionOnly: true,
 		CookieSameSite:    "Lax",
 		Extractor:         extractors.FromCookie("sosilol_session"),
 	}
 
-	dbPool, err := pgxpool.New(
-		ctx,
-		fmt.Sprintf(
-			"postgres://%s:%s@%s:%s/%s",
-			cfg.PostgresUsername,
-			cfg.PostgresPassword,
-			cfg.PostgresHost,
-			cfg.PostgresPort,
-			cfg.PostgresDatabase,
-		),
-	)
+	poolCfg, err := pgxpool.ParseConfig("")
+	if err != nil {
+		return nil, err
+	}
+	poolCfg.ConnConfig.Host = cfg.PostgresHost
+	poolCfg.ConnConfig.Port = func() uint16 {
+		var port uint16
+		if _, err := fmt.Sscanf(cfg.PostgresPort, "%d", &port); err != nil || port == 0 {
+			return 5432
+		}
+		return port
+	}()
+	poolCfg.ConnConfig.User = cfg.PostgresUsername
+	poolCfg.ConnConfig.Password = cfg.PostgresPassword
+	poolCfg.ConnConfig.Database = cfg.PostgresDatabase
+
+	dbPool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
 		err := redisClient.Close()
 		if err != nil {
@@ -111,7 +117,6 @@ func NewApp(
 		queries,
 		l,
 
-		githubService,
 		cache.NewService(
 			redisClient,
 			cfg.PasteCacheTTL,
@@ -122,6 +127,12 @@ func NewApp(
 		ErrorHandler:    apphttp.NewCustomErrorHandler(l),
 		StructValidator: validator.NewCustomValidator(),
 		CaseSensitive:   true,
+		TrustProxy:      true,
+		TrustProxyConfig: fiber.TrustProxyConfig{
+			Private:   true,
+			Loopback:  true,
+			LinkLocal: true,
+		},
 	})
 
 	middleware.Register(app, l, cfg, sessionConfig)

@@ -4,18 +4,19 @@
   "workspaces": {
     "": {
       "dependencies": {
+        "@alpinejs/csp": "^3.15.12",
         "@fontsource/montserrat": "^5.2.8",
         "@fontsource/ubuntu-mono": "^5.2.8",
         "@fortawesome/fontawesome-free": "^7.2.0",
-        "alpinejs": "^3.15.12",
         "highlight.js": "^11.11.1",
-        "htmx.org": "^2.0.10",
         "material-icons": "^1.13.14",
         "materialize-css": "^1.0.0",
       },
     },
   },
   "packages": {
+    "@alpinejs/csp": ["@alpinejs/csp@3.15.12", "", { "dependencies": { "@vue/reactivity": "~3.1.1" } }, "sha512-9jielHzVPqMlO9zQ6K1WtdhSHVX5OZfq5ZDUSVZfY10VnXRoRBx8nOadWjsG1xev/kz4EPaNN9eDFWtZSvJHxA=="],
+
     "@fontsource/montserrat": ["@fontsource/montserrat@5.2.8", "", {}, "sha512-xTjLxSbSfCycDB0pwmNsfNvdfWPaDaRQ2LC6yt/ZI7SdvXG52zHnzNYC/09mzuAuWNJyShkteutfCoDgym56hQ=="],
 
     "@fontsource/ubuntu-mono": ["@fontsource/ubuntu-mono@5.2.8", "", {}, "sha512-N4nT8+GYWWcDODVSBLU4f3PycZQH9YIF6SypDI0rti3HrLqcXFS9u6wMvAd9vx1FmjAQkYv7Ld9CZ8XYTEOD0A=="],
@@ -26,11 +27,7 @@
 
     "@vue/shared": ["@vue/shared@3.1.5", "", {}, "sha512-oJ4F3TnvpXaQwZJNF3ZK+kLPHKarDmJjJ6jyzVNDKH9md1dptjC7lWR//jrGuLdek/U6iltWxqAnYOu8gCiOvA=="],
 
-    "alpinejs": ["alpinejs@3.15.12", "", { "dependencies": { "@vue/reactivity": "~3.1.1" } }, "sha512-nJvPAQVNPdZZ0NrExJ/kzQco3ijR8LwvCOadQecllESiqT4NyZ/57sN9V2XyvhlBGAbmlKYgeWZvYdKq99ij/Q=="],
-
     "highlight.js": ["highlight.js@11.11.1", "", {}, "sha512-Xwwo44whKBVCYoliBQwaPvtd/2tYFkRQtXDWj1nackaV2JPXx3L0+Jvd8/qCJ2p+ML0/XVkJ2q+Mr+UVdpJK5w=="],
-
-    "htmx.org": ["htmx.org@2.0.10", "", {}, "sha512-kdeJe7ZVwaS6QMz/ebBIVtZdpwen6L0OQ5GOhPV9MKBb196TCZeZu4yA7ZIQsaLKv7EpXz+So7KSXNuHXhj7Cw=="],
 
     "material-icons": ["material-icons@1.13.14", "", {}, "sha512-kZOfc7xCC0rAT8Q3DQixYAeT+tBqZnxkseQtp2bxBxz7q5pMAC+wmit7vJn1g/l7wRU+HEPq23gER4iPjGs5Cg=="],
 

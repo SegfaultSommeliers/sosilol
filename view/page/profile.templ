@@ -15,7 +15,11 @@ templ Profile(
     @layout.BaseLayout() {
         <section class="default-section" id="profile">
             <header style="text-align: center; user-select: none;">
-                <img src={ AvatarURL } alt="Avatar" class="avatar">
+                if AvatarURL != "" {
+                    <img src={ AvatarURL } alt="Avatar" class="avatar">
+                } else {
+                    <div class="avatar" style="display:inline-block;width:64px;height:64px;border-radius:50%;background:#676a6d;"></div>
+                }
                 <h3>Профиль { Login }</h3>
             </header>
             <div class="pastes" style="text-align: center; user-select: none;">

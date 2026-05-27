@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/SegfaultSommeliers/sosilol/internal/db"
-	"github.com/SegfaultSommeliers/sosilol/internal/github"
 	"github.com/SegfaultSommeliers/sosilol/internal/paste/cache"
 	"github.com/SegfaultSommeliers/sosilol/internal/shared/model"
 	"github.com/jackc/pgx/v5"
@@ -29,44 +28,35 @@ type Service struct {
 	queries *db.Queries
 	logger  *slog.Logger
 
-	githubService *github.Service
-	cacheService  *cache.Service
+	cacheService *cache.Service
 }
 
 func NewService(
 	queries *db.Queries,
 	logger *slog.Logger,
 
-	githubService *github.Service,
 	cacheService *cache.Service,
 ) *Service {
 	return &Service{
 		queries: queries,
 		logger:  logger,
 
-		githubService: githubService,
-		cacheService:  cacheService,
+		cacheService: cacheService,
 	}
 }
 
 func (s *Service) Save(
 	ctx context.Context,
 	text string,
-	token string,
+	authorUserID int64,
 ) (string, error) {
 	var authorID pgtype.Int8
-	if token != "" {
-		profile, err := s.githubService.GetRawProfile(ctx, token)
-		if err != nil {
-			return "", err
-		}
-
-		if err = s.queries.UpsertProfile(ctx, profile.ID); err != nil {
+	if authorUserID != 0 {
+		if err := s.queries.UpsertProfile(ctx, authorUserID); err != nil {
 			return "", fmt.Errorf("failed to upsert profile: %w", err)
 		}
-
 		authorID = pgtype.Int8{
-			Int64: profile.ID,
+			Int64: authorUserID,
 			Valid: true,
 		}
 	}

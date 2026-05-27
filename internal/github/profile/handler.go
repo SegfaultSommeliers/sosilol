@@ -5,6 +5,7 @@ import (
 
 	"github.com/SegfaultSommeliers/sosilol/internal/github"
 	apphttp "github.com/SegfaultSommeliers/sosilol/internal/http"
+	"github.com/SegfaultSommeliers/sosilol/internal/shared/model"
 	"github.com/SegfaultSommeliers/sosilol/view/page"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
@@ -21,20 +22,27 @@ func NewHandler(
 		if !ok || accountType != "github" {
 			return c.Redirect().To("/auth/request")
 		}
-		accessToken, ok := sess.Get("access_token").(string)
-		if !ok || accessToken == "" {
+		userID, ok := sess.Get("github_user_id").(int64)
+		if !ok || userID == 0 {
 			return c.Redirect().To("/auth/request")
 		}
 
-		profile, err := githubService.GetProfile(ctx, accessToken)
+		login, _ := sess.Get("github_login").(string)
+		avatarURL, _ := sess.Get("github_avatar_url").(string)
+
+		pastes, err := githubService.GetPastesByUserID(ctx, userID)
 		if err != nil {
 			return err
 		}
 
+		if pastes == nil {
+			pastes = make([]model.Paste, 0)
+		}
+
 		return apphttp.Render(c, http.StatusOK, page.Profile(
-			profile.Login,
-			profile.AvatarURL,
-			profile.Pastes,
+			login,
+			avatarURL,
+			pastes,
 		))
 	}
 }

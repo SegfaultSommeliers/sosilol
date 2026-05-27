@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/SegfaultSommeliers/sosilol/internal/db"
 	"github.com/SegfaultSommeliers/sosilol/internal/shared/model"
@@ -13,6 +15,18 @@ import (
 	"golang.org/x/oauth2"
 	githuboauth "golang.org/x/oauth2/github"
 )
+
+func safeAvatarURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "https" {
+		return ""
+	}
+	host := strings.ToLower(u.Host)
+	if host != "avatars.githubusercontent.com" && host != "github.com" {
+		return ""
+	}
+	return raw
+}
 
 var (
 	ErrUnauthorized = errors.New("unauthorized")
@@ -93,22 +107,17 @@ func (s *Service) GetRawProfile(
 	return &model.Profile{
 		ID:        user.GetID(),
 		Login:     user.GetLogin(),
-		AvatarURL: user.GetAvatarURL(),
+		AvatarURL: safeAvatarURL(user.GetAvatarURL()),
 		Pastes:    make([]model.Paste, 0),
 	}, nil
 }
 
-func (s *Service) GetProfile(
+func (s *Service) GetPastesByUserID(
 	ctx context.Context,
-	token string,
-) (*model.Profile, error) {
-	profile, err := s.GetRawProfile(ctx, token)
-	if err != nil {
-		return nil, err
-	}
-
+	userID int64,
+) ([]model.Paste, error) {
 	dbPastes, err := s.queries.GetPastesByAuthorID(ctx, pgtype.Int8{
-		Int64: profile.ID,
+		Int64: userID,
 		Valid: true,
 	})
 	if err != nil {
@@ -122,7 +131,5 @@ func (s *Service) GetProfile(
 			Code: dbPaste.Code,
 		}
 	}
-	profile.Pastes = pastes
-
-	return profile, nil
+	return pastes, nil
 }

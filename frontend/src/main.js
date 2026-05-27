@@ -1,7 +1,6 @@
 import "materialize-css/dist/js/materialize.min.js";
 import hljs from "highlight.js";
-import Alpine from "alpinejs";
-import "htmx.org";
+import Alpine from "@alpinejs/csp";
 
 window.hljs = hljs;
 
@@ -13,17 +12,31 @@ Alpine.data("editor", () => ({
         if (!this.text || this.text.length < 1) return;
         this.saving = true;
         try {
+            const csrfToken = document.cookie
+                .split("; ")
+                .find((c) => c.startsWith("csrf_="))
+                ?.split("=")[1] ?? "";
+
             const resp = await fetch("/save", {
                 method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: "text=" + encodeURIComponent(this.text),
-                redirect: "follow",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Csrf-Token": csrfToken,
+                },
+                body: JSON.stringify({ text: this.text }),
                 credentials: "same-origin",
             });
-            const id = resp.url.split("/view/")[1];
+
+            if (!resp.ok) {
+                alert("Ошибка при сохранении пасты");
+                return;
+            }
+
+            const { id } = await resp.json();
             if (id) {
-                const newUrl = window.location.origin + "/view/" + id;
-                await navigator.clipboard.writeText(newUrl).catch(() => {});
+                await navigator.clipboard.writeText(
+                    window.location.origin + "/view/" + id
+                ).catch(() => {});
                 window.location.href = "/view/" + id;
             }
         } finally {

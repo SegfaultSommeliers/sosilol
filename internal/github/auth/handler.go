@@ -2,7 +2,9 @@ package auth
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/SegfaultSommeliers/sosilol/internal/github"
@@ -23,6 +25,16 @@ func NewHandler(
 	}
 }
 
+func isSafeRedirect(s string) bool {
+	u, err := url.Parse(s)
+	if err != nil {
+		return false
+	}
+	return u.Scheme == "" && u.Host == "" &&
+		strings.HasPrefix(u.Path, "/") &&
+		!strings.HasPrefix(u.Path, "//")
+}
+
 func (h *Handler) RequestAuth(c fiber.Ctx) error {
 	nonce := rand.Text()
 	sess := session.FromContext(c)
@@ -30,12 +42,9 @@ func (h *Handler) RequestAuth(c fiber.Ctx) error {
 	sess.Set("oauth_state", nonce)
 
 	redirectTo := c.Query("redirect")
-	if !strings.HasPrefix(redirectTo, "/") ||
-		strings.HasPrefix(redirectTo, "//") ||
-		strings.HasPrefix(redirectTo, "\\\\") {
+	if !isSafeRedirect(redirectTo) {
 		redirectTo = "/profile"
 	}
-
 	sess.Set("redirect_after_login", redirectTo)
 
 	return c.Redirect().To(h.service.GetAuthURL(nonce))
@@ -65,7 +74,8 @@ func (h *Handler) RedirectAuth(c fiber.Ctx) error {
 			Message:    "missing state",
 		}
 	}
-	if expectedState == "" || state != expectedState {
+
+	if expectedState == "" || subtle.ConstantTimeCompare([]byte(state), []byte(expectedState)) != 1 {
 		return &apphttp.AppError{
 			StatusCode: http.StatusUnauthorized,
 			Code:       "unauthorized",
@@ -79,15 +89,26 @@ func (h *Handler) RedirectAuth(c fiber.Ctx) error {
 		return err
 	}
 
-	sess.Set("account_type", "github")
-	sess.Set("access_token", accessToken)
+	profile, err := h.service.GetRawProfile(ctx, accessToken)
+	if err != nil {
+		return err
+	}
 
 	redirectTo := "/profile"
 	if redirectToString, ok := sess.Get("redirect_after_login").(string); ok &&
-		redirectToString != "" {
+		isSafeRedirect(redirectToString) {
 		redirectTo = redirectToString
 	}
 	sess.Delete("redirect_after_login")
+
+	if err := sess.Regenerate(); err != nil {
+		return err
+	}
+
+	sess.Set("account_type", "github")
+	sess.Set("github_user_id", profile.ID)
+	sess.Set("github_login", profile.Login)
+	sess.Set("github_avatar_url", profile.AvatarURL)
 
 	return c.Redirect().To(redirectTo)
 }

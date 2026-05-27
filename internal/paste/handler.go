@@ -1,8 +1,8 @@
 package paste
 
 import (
-	"fmt"
 	"net/http"
+	"regexp"
 
 	apphttp "github.com/SegfaultSommeliers/sosilol/internal/http"
 	"github.com/SegfaultSommeliers/sosilol/view/page"
@@ -11,6 +11,10 @@ import (
 )
 
 const maxPasteSize = 1 * 1024 * 1024
+
+// validPasteID matches exactly the 7-character alphanumeric IDs produced by
+// go-nanoid. Reject anything else before hitting Redis or PostgreSQL.
+var validPasteID = regexp.MustCompile(`^[a-zA-Z0-9]{7}$`)
 
 type Handler struct {
 	service *Service
@@ -21,28 +25,39 @@ func NewHandler(service *Service) *Handler {
 }
 
 // Save
-// @Summary      Сохранение новой пасты
-// @Description  Сохранение новой пасты. Если пользователь авторизован через GitHub — паста привязывается к аккаунту.
-// @Tags         Контроллер паст
-// @Accept       plain
-// @Produce      plain
-// @Param        text  formData  string  true  "Текст пасты"
-// @Success      302   {string}  string  "Редирект на /view/{id}"
-// @Failure      500   {string}  string  "Внутренняя ошибка сервера"
+// @Summary      Save a new paste
+// @Description  Saves a paste. If the user is authenticated via GitHub, the paste is linked to their account.
+// @Tags         pastes
+// @Accept       json
+// @Produce      json
+// @Param        body  body      map[string]string  true  "Paste text"
+// @Success      201   {object}  map[string]string  "JSON with the paste id"
+// @Failure      400   {string}  string             "Invalid request body or empty text"
+// @Failure      500   {string}  string             "Internal server error"
 // @Router       /save [post]
 func (h *Handler) Save(c fiber.Ctx) error {
 	ctx := c.Context()
-	text := c.FormValue("text")
 
-	if text == "" {
+	var body struct {
+		Text string `json:"text"`
+	}
+	if err := c.Bind().JSON(&body); err != nil {
 		return &apphttp.AppError{
 			StatusCode: http.StatusBadRequest,
-			Code:       "Bad Request",
-			Message:    "Empty text",
+			Code:       "bad_request",
+			Message:    "invalid JSON body",
 		}
 	}
 
-	if len(text) > maxPasteSize {
+	if body.Text == "" {
+		return &apphttp.AppError{
+			StatusCode: http.StatusBadRequest,
+			Code:       "bad_request",
+			Message:    "text is required",
+		}
+	}
+
+	if len(body.Text) > maxPasteSize {
 		return &apphttp.AppError{
 			StatusCode: http.StatusBadRequest,
 			Code:       "bad_request",
@@ -52,34 +67,35 @@ func (h *Handler) Save(c fiber.Ctx) error {
 
 	sess := session.FromContext(c)
 	accountType, _ := sess.Get("account_type").(string)
-	accessToken, _ := sess.Get("access_token").(string)
+	userID, _ := sess.Get("github_user_id").(int64)
 
-	token := ""
-	if accountType != "" && accessToken != "" {
-		token = accessToken
+	// Pass userID=0 when the user is not authenticated; service treats 0 as anonymous.
+	var authorID int64
+	if accountType == "github" && userID != 0 {
+		authorID = userID
 	}
 
-	id, err := h.service.Save(ctx, text, token)
+	id, err := h.service.Save(ctx, body.Text, authorID)
 	if err != nil {
 		return err
 	}
 
-	return c.Redirect().To(fmt.Sprintf("/view/%s", id))
+	return c.Status(http.StatusCreated).JSON(fiber.Map{"id": id})
 }
 
 // View
-// @Summary      Просмотр пасты
-// @Description  Возвращает HTML-страницу с содержимым пасты
-// @Tags         Контроллер паст
+// @Summary      View a paste
+// @Description  Returns an HTML page with the paste content
+// @Tags         pastes
 // @Produce      html
-// @Param        id   path      string  true  "ID пасты"
-// @Success      200  {string}  string  "HTML-страница с пастой"
-// @Failure      302  {string}  string  "Редирект на / при отсутствии id или ошибке"
+// @Param        id   path      string  true  "Paste ID"
+// @Success      200  {string}  string  "HTML page with the paste"
+// @Failure      302  {string}  string  "Redirect to / if id is missing or not found"
 // @Router       /view/{id} [get]
 func (h *Handler) View(c fiber.Ctx) error {
 	ctx := c.Context()
 	id := c.Params("id")
-	if id == "" {
+	if id == "" || !validPasteID.MatchString(id) {
 		return c.Redirect().To("/")
 	}
 
@@ -92,14 +108,14 @@ func (h *Handler) View(c fiber.Ctx) error {
 }
 
 // Raw
-// @Summary      Получение пасты в сыром виде
-// @Description  Возвращает содержимое пасты в виде plain text
-// @Tags         Контроллер паст
+// @Summary      Get raw paste
+// @Description  Returns the paste content as plain text
+// @Tags         pastes
 // @Produce      plain
-// @Param        id   path      string  true  "ID пасты"
-// @Success      200  {string}  string  "Паста в сыром виде"
-// @Failure      400  {string}  string  "id обязателен"
-// @Failure      500  {string}  string  "Внутренняя ошибка сервера"
+// @Param        id   path      string  true  "Paste ID"
+// @Success      200  {string}  string  "Raw paste content"
+// @Failure      400  {string}  string  "id is required"
+// @Failure      500  {string}  string  "Internal server error"
 // @Router       /raw/{id} [get]
 func (h *Handler) Raw(c fiber.Ctx) error {
 	ctx := c.Context()
@@ -109,6 +125,14 @@ func (h *Handler) Raw(c fiber.Ctx) error {
 			StatusCode: http.StatusBadRequest,
 			Code:       "bad_request",
 			Message:    "id is required",
+		}
+	}
+
+	if !validPasteID.MatchString(id) {
+		return &apphttp.AppError{
+			StatusCode: http.StatusBadRequest,
+			Code:       "bad_request",
+			Message:    "invalid id",
 		}
 	}
 
