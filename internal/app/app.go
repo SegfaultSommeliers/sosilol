@@ -176,7 +176,7 @@ func (app *App) Start(ctx context.Context, cfg config.Config) error {
 		GracefulContext:       ctx,
 		ShutdownTimeout:       cfg.GracefulTimeout,
 		DisableStartupMessage: true,
-		EnablePrefork:         true,
+		EnablePrefork:         cfg.EnablePrefork,
 	}); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}

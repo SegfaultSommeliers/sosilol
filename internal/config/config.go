@@ -42,6 +42,8 @@ type Config struct {
 	GithubClientId     string `env:"GITHUB_CLIENT_ID,required"`
 	GithubClientSecret string `env:"GITHUB_SECRET,required"`
 	GithubRedirectUrl  string `env:"GITHUB_REDIRECT_URL,required"`
+
+	EnablePrefork bool `env:"ENABLE_PREFORK" envDefault:"false"`
 }
 
 func Load() (Config, error) {
