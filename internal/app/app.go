@@ -3,9 +3,11 @@ package app
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/SegfaultSommeliers/sosilol/internal/config"
@@ -23,6 +25,7 @@ import (
 	"github.com/gofiber/storage/redis/v3"
 	"github.com/jackc/pgx/v5/pgxpool"
 	goredis "github.com/redis/go-redis/v9"
+	"github.com/valyala/fasthttp"
 )
 
 // App
@@ -131,6 +134,7 @@ func NewApp(
 		ErrorHandler:    apphttp.NewCustomErrorHandler(l),
 		StructValidator: validator.NewCustomValidator(),
 		CaseSensitive:   true,
+		ProxyHeader:     fasthttp.HeaderXForwardedFor,
 		TrustProxy:      cfg.TrustedProxy != "",
 		TrustProxyConfig: fiber.TrustProxyConfig{
 			Proxies: func() []string {
@@ -140,6 +144,15 @@ func NewApp(
 				return nil
 			}(),
 		},
+	})
+
+	app.Hooks().OnListen(func(listenData fiber.ListenData) error {
+		l.Info("Server is starting",
+			"host", listenData.Host,
+			"port", listenData.Port,
+			"tls", listenData.TLS,
+		)
+		return nil
 	})
 
 	middleware.Register(app, l, cfg, sessionConfig, redisStorage)
@@ -156,6 +169,18 @@ func NewApp(
 		RedisClient: redisClient,
 		DbPool:      dbPool,
 	}, nil
+}
+
+func (app *App) Start(ctx context.Context, cfg config.Config) error {
+	if err := app.Fiber.Listen(cfg.HttpAddress, fiber.ListenConfig{
+		GracefulContext:       ctx,
+		ShutdownTimeout:       cfg.GracefulTimeout,
+		DisableStartupMessage: true,
+		EnablePrefork:         true,
+	}); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	return nil
 }
 
 func (app *App) Close() error {

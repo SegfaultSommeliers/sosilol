@@ -32,12 +32,18 @@ func RegisterRoutes(
 		Max:        10,
 		Expiration: 1 * time.Minute,
 		Storage:    redisStorage,
+		KeyGenerator: func(c fiber.Ctx) string {
+			return "limit:save:" + c.IP()
+		},
 	})
 
 	authRequestLimiter := limiter.New(limiter.Config{
 		Max:        5,
 		Expiration: 1 * time.Minute,
 		Storage:    redisStorage,
+		KeyGenerator: func(c fiber.Ctx) string {
+			return "limit:auth:" + c.IP()
+		},
 	})
 
 	app.Get("/health", health.Handler)

@@ -65,6 +65,9 @@ func Register(
 		Max:        60,
 		Expiration: 1 * time.Minute,
 		Storage:    redisStorage,
+		KeyGenerator: func(c fiber.Ctx) string {
+			return "limit:global:" + c.IP()
+		},
 	}))
 
 	app.Use(csrf.New(csrf.Config{

@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,7 +10,6 @@ import (
 	"github.com/SegfaultSommeliers/sosilol/internal/app"
 	"github.com/SegfaultSommeliers/sosilol/internal/config"
 	"github.com/SegfaultSommeliers/sosilol/internal/logger"
-	"github.com/gofiber/fiber/v3"
 )
 
 func main() {
@@ -38,10 +35,7 @@ func main() {
 		}
 	}(a)
 
-	if err := a.Fiber.Listen(cfg.HttpAddress, fiber.ListenConfig{
-		GracefulContext: ctx,
-		ShutdownTimeout: cfg.GracefulTimeout,
-	}); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err = a.Start(ctx, cfg); err != nil {
 		l.Error("failed to start app", "error", err)
 	}
 }

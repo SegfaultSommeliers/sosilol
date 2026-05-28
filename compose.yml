@@ -1,3 +1,10 @@
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   app:
     build: .
@@ -13,6 +20,13 @@ services:
         condition: service_completed_successfully
       valkey:
         condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "-O-", "http://localhost:8080/health" ]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    logging: *default-logging
 
   migrate:
     image: docker.io/migrate/migrate:v4.19.1
@@ -26,9 +40,11 @@ services:
       postgres:
         condition: service_healthy
     restart: on-failure
+    logging: *default-logging
 
   postgres:
     image: docker.io/library/postgres:18.4-alpine3.23
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USERNAME:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -40,6 +56,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    logging: *default-logging
 
   valkey:
     image: docker.io/valkey/valkey:9.1.0-alpine3.23
@@ -50,6 +67,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
+    logging: *default-logging
 
   cloudflared:
     image: docker.io/cloudflare/cloudflared:2026.2.0
@@ -58,7 +77,10 @@ services:
     profiles:
       - tunnel
     command: tunnel run --url ${CLOUDFLARE_URL} --token ${CLOUDFLARE_TUNNEL_TOKEN}
-
+    depends_on:
+      app:
+        condition: service_started
+    logging: *default-logging
 volumes:
   postgres_data:
   valkey_data:
