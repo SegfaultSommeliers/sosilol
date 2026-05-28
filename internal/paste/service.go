@@ -137,5 +137,5 @@ func (s *Service) LoadRaw(ctx context.Context, id string) (string, error) {
 }
 
 func generateID() (string, error) {
-	return gonanoid.Generate(alphabet, 7)
+	return gonanoid.Generate(alphabet, 14)
 }
