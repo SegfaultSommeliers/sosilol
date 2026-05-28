@@ -15,7 +15,7 @@ type saveRequest struct {
 }
 
 type pasteIDParams struct {
-	ID string `params:"id" validate:"required,len=7,alphanum" message:"invalid paste id"`
+	ID string `params:"id" validate:"required,len=14,alphanum" message:"invalid paste id"`
 }
 
 type Handler struct {
