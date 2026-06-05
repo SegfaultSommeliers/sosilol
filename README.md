@@ -2,7 +2,7 @@
 
 Amazing paste service with beautiful name.
 
-Url: https://sosilol.fiwka.xyz/
+Url: https://sosi.lol
 
 ![Screenshot](https://i.imgur.com/fpMcNLP.png "Screenshot")
 
