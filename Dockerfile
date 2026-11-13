@@ -1,4 +1,4 @@
-FROM docker.io/oven/bun:1.3.14-alpine AS frontend-builder
+FROM docker.io/oven/bun:1.4.4-alpine@sha256:4cf82f5686b196504fe119db3fcd9185b191f82ece82c40680e597228ec6070a AS frontend-builder
 
 WORKDIR /frontend-build
 
@@ -12,7 +12,7 @@ COPY frontend/ ./
 RUN bun build src/main.js --outdir /dist --minify && \
     bun build src/main.css --outdir /dist --asset-naming '[name]-[hash].[ext]' --minify
 
-FROM docker.io/library/golang:1.26.3-alpine3.23 AS builder
+FROM docker.io/library/golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS builder
 
 WORKDIR /build
 
@@ -45,7 +45,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     -o /build/sosilol \
     ./cmd/sosilol
 
-FROM docker.io/library/alpine:3.23
+FROM docker.io/library/alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
 
 WORKDIR /app
 

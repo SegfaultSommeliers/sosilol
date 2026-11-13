@@ -8,8 +8,6 @@ x-logging: &default-logging
 services:
   app:
     build: .
-    ports:
-      - "8080:8080"
     env_file: .env
     restart: unless-stopped
     environment:
@@ -29,7 +27,7 @@ services:
     logging: *default-logging
 
   migrate:
-    image: docker.io/migrate/migrate:v4.19.1
+    image: docker.io/migrate/migrate:v4.20.1@sha256:76cc2074cb6642631f34a898ced71e6aeaa6b1a4d78c4daa743275a22e0c5be7
     volumes:
       - ./db/migrations:/migrations
     command: >
@@ -43,7 +41,7 @@ services:
     logging: *default-logging
 
   postgres:
-    image: docker.io/library/postgres:18.4-alpine3.23
+    image: docker.io/library/postgres:18.7-alpine3.24@sha256:75dcac3dfb1cd01ca3536910bbc84128759362f8b118bf8c55b38a94f68f3b73
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USERNAME:-postgres}
@@ -59,7 +57,7 @@ services:
     logging: *default-logging
 
   valkey:
-    image: docker.io/valkey/valkey:9.1.0-alpine3.23
+    image: docker.io/valkey/valkey:9.1.3-alpine3.24@sha256:bf09d58e96d6b4524a15396b65b242bbe18beebbcc15a04d8ee75ddac62fae0b
     volumes:
       - valkey_data:/data
     healthcheck:
@@ -71,7 +69,7 @@ services:
     logging: *default-logging
 
   cloudflared:
-    image: docker.io/cloudflare/cloudflared:2026.2.0
+    image: docker.io/cloudflare/cloudflared:2026.10.7@sha256:4955524aeaa379e154023d5a027c250f7b35041a2e7e950cf13f144bc9b9c5ba
     restart: unless-stopped
 
     profiles:
